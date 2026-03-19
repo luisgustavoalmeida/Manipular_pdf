@@ -1,0 +1,41 @@
+# Ambiente virtual Python
+venv/
+.venv/
+env/
+.env/
+
+# Bytecode e cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Variáveis de ambiente e segredos
+.env
+.env.local
+*.key
+
+# Configuração local do usuário
+config_usuario.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Saídas locais (opcional: descomente se não quiser versionar PDFs gerados)
+# saida/
+# *.pdf

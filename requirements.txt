@@ -1,0 +1,11 @@
+# Manipulação de PDF
+pypdf>=4.0.0
+
+# Leitura/escrita avançada de PDF (preservar layout e imagens na tradução)
+PyMuPDF>=1.24.0
+
+# Tradução (múltiplos provedores gratuitos)
+deep-translator>=1.11.0
+
+# Barra de progresso
+tqdm>=4.66.0
