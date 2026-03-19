@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="imagem ilustrativa/Automação de tradução de manuais técnicos.png" alt="Automação na tradução de manuais técnicos" width="100%">
+</p>
+
 # Manipulador de PDF
 
 Ferramenta em Python para **dividir**, **juntar** e **traduzir** arquivos PDF com interface em terminal e uso como biblioteca. Código e documentação em português (BR).
@@ -200,6 +204,3 @@ Substitua `SEU_USUARIO` pelo seu usuário do GitHub.
 
 ---
 
-## Licença
-
-Uso livre para fins pessoais e educacionais. Projeto sob [LICENSE](LICENSE) (MIT).
