@@ -1,5 +1,5 @@
 
-# Manipulador de PDF
+# Manipulador de PDF - Tradutor automático
 
 Ferramenta em Python para **dividir**, **juntar** e **traduzir** arquivos PDF com interface em terminal.
 
