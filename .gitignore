@@ -39,5 +39,7 @@ Thumbs.db
 # Saídas e arquivos locais
 arquivo/
 HIPASE-E_OperationManual_(en)_Rev03 V8.05.00.pdf/
+linkedin_posts/
 # saida/
 # *.pdf
+.gitignore
