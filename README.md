@@ -1,10 +1,11 @@
-<p align="center">
-  <img src="imagem ilustrativa/Automação de tradução de manuais técnicos.png" alt="Automação na tradução de manuais técnicos" width="100%">
-</p>
 
 # Manipulador de PDF
 
 Ferramenta em Python para **dividir**, **juntar** e **traduzir** arquivos PDF com interface em terminal e uso como biblioteca. Código e documentação em português (BR).
+
+<p align="center">
+  <img src="imagem ilustrativa/Automação de tradução de manuais técnicos.png" alt="Automação na tradução de manuais técnicos" width="100%">
+</p>
 
 ---
 
@@ -187,20 +188,6 @@ O projeto é organizado em **módulos por função**: `dividir_pdf`, `juntar_pdf
 - **Tradução em threads:** a lentidão está no acesso à API (I/O), não no processamento local. Usar um pool de threads permite enviar vários trechos ao mesmo tempo e manter a ordem dos resultados por índice para não alterar o layout.
 - **Interface no terminal:** uso de **Path** para caminhos (cross-platform), **UTF-8** no Windows para acentos, e **códigos ANSI** para cores e caixas, com fallback se o terminal não suportar.
 
----
-
-## Publicar no GitHub
-
-1. Crie um repositório novo no GitHub (sem README, sem .gitignore).
-2. Na pasta do projeto:
-
-```bash
-git remote add origin https://github.com/SEU_USUARIO/Manipular_pdf.git
-git branch -M main
-git push -u origin main
-```
-
-Substitua `SEU_USUARIO` pelo seu usuário do GitHub.
 
 ---
 
