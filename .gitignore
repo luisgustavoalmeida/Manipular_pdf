@@ -36,6 +36,8 @@ config_usuario.json
 .DS_Store
 Thumbs.db
 
-# Saídas locais (opcional: descomente se não quiser versionar PDFs gerados)
+# Saídas e arquivos locais
+arquivo/
+HIPASE-E_OperationManual_(en)_Rev03 V8.05.00.pdf/
 # saida/
 # *.pdf
