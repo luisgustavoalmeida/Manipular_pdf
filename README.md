@@ -93,6 +93,19 @@ Manipular_pdf/
 └── README.md
 ```
 
+## Publicar no GitHub
+
+1. Crie um repositório novo no GitHub (sem README, sem .gitignore).
+2. Na pasta do projeto, adicione o remote e envie:
+
+   ```bash
+   git remote add origin https://github.com/SEU_USUARIO/Manipular_pdf.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+   (Substitua `SEU_USUARIO` pelo seu usuário do GitHub.)
+
 ## Licença
 
-Uso livre para fins pessoais e educacionais.
+Uso livre para fins pessoais e educacionais. Veja o arquivo [LICENSE](LICENSE) (MIT).
