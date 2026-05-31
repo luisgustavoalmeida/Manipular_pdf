@@ -4,11 +4,13 @@ Módulo para divisão de arquivos PDF.
 Suporta: dividir a cada N páginas ou dividir em N partes homogêneas.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
-from progresso import RelatorioProgresso
+from progresso import OperacaoCancelada, RelatorioProgresso, limpar_arquivos_gerados, verificar_cancelamento
 from tqdm import tqdm
 
 
@@ -63,30 +65,16 @@ def dividir_por_paginas(
     leitor = PdfReader(str(caminho_entrada))
     total_paginas = len(leitor.pages)
     total_partes = (total_paginas + paginas_por_parte - 1) // paginas_por_parte
-    arquivos_gerados = []
+    arquivos_gerados: list[str] = []
 
-    numero_parte = 1
-    pagina_inicial = 0
+    try:
+        numero_parte = 1
+        pagina_inicial = 0
 
-    if progresso:
-        progresso.iniciar(total_partes, "Dividindo PDF")
-        while pagina_inicial < total_paginas:
-            pagina_final = min(pagina_inicial + paginas_por_parte, total_paginas)
-            escritor = PdfWriter()
-            for indice in range(pagina_inicial, pagina_final):
-                escritor.add_page(leitor.pages[indice])
-            nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
-            caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
-            with open(caminho_saida, "wb") as arquivo:
-                escritor.write(arquivo)
-            arquivos_gerados.append(str(caminho_saida))
-            numero_parte += 1
-            pagina_inicial = pagina_final
-            progresso.avancar(1, f"Parte {numero_parte - 1}/{total_partes}")
-        progresso.concluir()
-    else:
-        with tqdm(total=total_partes, desc="Dividindo PDF", unit="parte") as barra:
+        if progresso:
+            progresso.iniciar(total_partes, "Dividindo PDF")
             while pagina_inicial < total_paginas:
+                verificar_cancelamento(progresso)
                 pagina_final = min(pagina_inicial + paginas_por_parte, total_paginas)
                 escritor = PdfWriter()
                 for indice in range(pagina_inicial, pagina_final):
@@ -98,9 +86,28 @@ def dividir_por_paginas(
                 arquivos_gerados.append(str(caminho_saida))
                 numero_parte += 1
                 pagina_inicial = pagina_final
-                barra.update(1)
+                progresso.avancar(1, f"Parte {numero_parte - 1}/{total_partes}")
+            progresso.concluir()
+        else:
+            with tqdm(total=total_partes, desc="Dividindo PDF", unit="parte") as barra:
+                while pagina_inicial < total_paginas:
+                    pagina_final = min(pagina_inicial + paginas_por_parte, total_paginas)
+                    escritor = PdfWriter()
+                    for indice in range(pagina_inicial, pagina_final):
+                        escritor.add_page(leitor.pages[indice])
+                    nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
+                    caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
+                    with open(caminho_saida, "wb") as arquivo:
+                        escritor.write(arquivo)
+                    arquivos_gerados.append(str(caminho_saida))
+                    numero_parte += 1
+                    pagina_inicial = pagina_final
+                    barra.update(1)
 
-    return arquivos_gerados
+        return arquivos_gerados
+    except OperacaoCancelada:
+        limpar_arquivos_gerados(arquivos_gerados)
+        raise
 
 
 def dividir_em_partes(
@@ -152,34 +159,39 @@ def dividir_em_partes(
         extra = 1 if i < resto else 0
         tamanhos.append(paginas_por_parte_base + extra)
 
-    arquivos_gerados = []
+    arquivos_gerados: list[str] = []
     pagina_atual = 0
 
-    iterador = enumerate(tamanhos, start=1)
-    if progresso:
-        progresso.iniciar(len(tamanhos), "Dividindo PDF")
-        for numero_parte, qtd_paginas in iterador:
-            escritor = PdfWriter()
-            for _ in range(qtd_paginas):
-                escritor.add_page(leitor.pages[pagina_atual])
-                pagina_atual += 1
-            nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
-            caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
-            with open(caminho_saida, "wb") as arquivo:
-                escritor.write(arquivo)
-            arquivos_gerados.append(str(caminho_saida))
-            progresso.avancar(1, f"Parte {numero_parte}/{len(tamanhos)}")
-        progresso.concluir()
-    else:
-        for numero_parte, qtd_paginas in tqdm(tamanhos, desc="Dividindo PDF", unit="parte"):
-            escritor = PdfWriter()
-            for _ in range(qtd_paginas):
-                escritor.add_page(leitor.pages[pagina_atual])
-                pagina_atual += 1
-            nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
-            caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
-            with open(caminho_saida, "wb") as arquivo:
-                escritor.write(arquivo)
-            arquivos_gerados.append(str(caminho_saida))
+    try:
+        iterador = enumerate(tamanhos, start=1)
+        if progresso:
+            progresso.iniciar(len(tamanhos), "Dividindo PDF")
+            for numero_parte, qtd_paginas in iterador:
+                verificar_cancelamento(progresso)
+                escritor = PdfWriter()
+                for _ in range(qtd_paginas):
+                    escritor.add_page(leitor.pages[pagina_atual])
+                    pagina_atual += 1
+                nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
+                caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
+                with open(caminho_saida, "wb") as arquivo:
+                    escritor.write(arquivo)
+                arquivos_gerados.append(str(caminho_saida))
+                progresso.avancar(1, f"Parte {numero_parte}/{len(tamanhos)}")
+            progresso.concluir()
+        else:
+            for numero_parte, qtd_paginas in tqdm(tamanhos, desc="Dividindo PDF", unit="parte"):
+                escritor = PdfWriter()
+                for _ in range(qtd_paginas):
+                    escritor.add_page(leitor.pages[pagina_atual])
+                    pagina_atual += 1
+                nome_arquivo = f"{prefixo_nome}_{numero_parte:02d}.pdf"
+                caminho_saida = _caminho_saida_unico(pasta_saida, nome_arquivo)
+                with open(caminho_saida, "wb") as arquivo:
+                    escritor.write(arquivo)
+                arquivos_gerados.append(str(caminho_saida))
 
-    return arquivos_gerados
+        return arquivos_gerados
+    except OperacaoCancelada:
+        limpar_arquivos_gerados(arquivos_gerados)
+        raise

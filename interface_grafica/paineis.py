@@ -132,7 +132,7 @@ class PainelOperacao(ABC, ctk.CTkFrame):
             height=32,
             font=t.FONT_PEQUENA,
             fg_color=t.COR_ERRO,
-            hover_color="#c5221f",
+            hover_color=t.COR_ERRO_HOVER,
             command=self._solicitar_cancelamento,
         )
         self.btn_cancelar.pack(anchor="w", padx=12, pady=(0, 10))

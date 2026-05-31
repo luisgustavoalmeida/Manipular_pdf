@@ -23,7 +23,8 @@ import interface_console as ui
 import navegacao as nav
 from constantes import (
     IDIOMAS_DISPONIVEIS,
-    TITULO_APLICACAO,
+    linha_versao,
+    titulo_com_versao,
     normalizar_idioma_origem,
     resolver_idioma_destino,
 )
@@ -453,9 +454,9 @@ def menu_console() -> None:
         ("9", "Comprimir / reduzir tamanho", executar_comprimir_pdf),
         ("0", "Sair", None),
     ]
-    ui.definir_titulo_janela(TITULO_APLICACAO)
+    ui.definir_titulo_janela(titulo_com_versao())
     while True:
-        ui.caixa_titulo(TITULO_APLICACAO)
+        ui.caixa_titulo(titulo_com_versao())
         print(f"  {ui.C_SUBTIL}Escolha uma operação:{ui.C_RESET}")
         print()
         for codigo, texto, _ in opcoes:
@@ -477,6 +478,11 @@ def menu_console() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Manipulador de arquivos PDF")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=linha_versao(),
+    )
     parser.add_argument(
         "--console",
         action="store_true",

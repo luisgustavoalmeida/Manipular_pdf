@@ -87,7 +87,7 @@ class CampoCaminho(ctk.CTkFrame):
         )
         self.entry.grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
-        ctk.CTkButton(
+        self.btn_procurar = ctk.CTkButton(
             linha,
             text="Procurar…",
             width=100,
@@ -96,7 +96,8 @@ class CampoCaminho(ctk.CTkFrame):
             fg_color=t.COR_PRIMARIA,
             hover_color=t.COR_PRIMARIA_HOVER,
             command=self._selecionar,
-        ).grid(row=0, column=1)
+        )
+        self.btn_procurar.grid(row=0, column=1)
 
     def valor(self) -> str:
         return self.entry.get().strip()
@@ -198,7 +199,7 @@ class ListaArquivos(ctk.CTkFrame):
         botoes = ctk.CTkFrame(self, fg_color="transparent")
         botoes.pack(fill="x")
 
-        ctk.CTkButton(
+        self.btn_adicionar = ctk.CTkButton(
             botoes,
             text="+ Adicionar",
             width=110,
@@ -207,9 +208,10 @@ class ListaArquivos(ctk.CTkFrame):
             fg_color=t.COR_PRIMARIA,
             hover_color=t.COR_PRIMARIA_HOVER,
             command=self._adicionar,
-        ).pack(side="left", padx=(0, 8))
+        )
+        self.btn_adicionar.pack(side="left", padx=(0, 8))
 
-        ctk.CTkButton(
+        self.btn_remover = ctk.CTkButton(
             botoes,
             text="− Remover",
             width=110,
@@ -218,9 +220,13 @@ class ListaArquivos(ctk.CTkFrame):
             fg_color=t.COR_FUNDO_CARD,
             hover_color=t.COR_BORDA,
             command=self._remover,
-        ).pack(side="left")
+        )
+        self.btn_remover.pack(side="left")
 
         self._labels: list[ctk.CTkLabel] = []
+
+    def refresh_apos_tema(self) -> None:
+        self._atualizar_lista()
 
     def valores(self) -> list[str]:
         return self._itens.copy()
@@ -326,6 +332,16 @@ class BarraStatus(ctk.CTkFrame):
         self.progress.set(0)
         self.progress.pack_forget()
 
+    def refresh_apos_tema(self) -> None:
+        texto = self.label.cget("text")
+        if texto.startswith("✓"):
+            self.definir(texto, "ok")
+        elif texto.startswith("✗"):
+            self.definir(texto, "erro")
+        elif texto not in ("", "Pronto"):
+            tipo = "aviso" if any(x in texto for x in ("Aguarde", "Cancelando", "⏳")) else "info"
+            self.definir(texto, tipo)
+
 
 class PainelResultado(ctk.CTkFrame):
     """Exibe resultado de uma operação concluída."""
@@ -342,7 +358,7 @@ class PainelResultado(ctk.CTkFrame):
         self.titulo_lbl = ctk.CTkLabel(cabecalho, text="", font=t.FONT_SUBTITULO, anchor="w")
         self.titulo_lbl.grid(row=0, column=0, sticky="w")
 
-        ctk.CTkButton(
+        self.btn_fechar_cabecalho = ctk.CTkButton(
             cabecalho,
             text="✕",
             width=28,
@@ -352,7 +368,8 @@ class PainelResultado(ctk.CTkFrame):
             hover_color=t.COR_BORDA,
             text_color=t.COR_TEXTO_SECUNDARIO,
             command=self.ocultar,
-        ).grid(row=0, column=1, sticky="e")
+        )
+        self.btn_fechar_cabecalho.grid(row=0, column=1, sticky="e")
 
         self.msg_lbl = ctk.CTkLabel(
             self,
@@ -450,6 +467,15 @@ class PainelResultado(ctk.CTkFrame):
             except Exception:
                 pass
 
+    def refresh_apos_tema(self) -> None:
+        titulo = self.titulo_lbl.cget("text")
+        if titulo.startswith("✓"):
+            self.titulo_lbl.configure(text_color=t.COR_SUCESSO)
+        elif titulo.startswith("✗"):
+            self.titulo_lbl.configure(text_color=t.COR_ERRO)
+        if self.winfo_ismapped():
+            self._draw()
+
 
 class SeletorThreadsTraducao(ctk.CTkFrame):
     """Controle para escolher quantas threads usar na tradução paralela."""
@@ -527,7 +553,7 @@ def criar_botoes_acao(
     frame = ctk.CTkFrame(master, fg_color="transparent")
     frame.pack(fill="x", pady=(16, 0))
 
-    ctk.CTkButton(
+    btn_executar = ctk.CTkButton(
         frame,
         text="Executar",
         width=140,
@@ -536,9 +562,10 @@ def criar_botoes_acao(
         fg_color=t.COR_PRIMARIA,
         hover_color=t.COR_PRIMARIA_HOVER,
         command=executar,
-    ).pack(side="left", padx=(0, 8))
+    )
+    btn_executar.pack(side="left", padx=(0, 8))
 
-    ctk.CTkButton(
+    btn_limpar = ctk.CTkButton(
         frame,
         text="Limpar",
         width=100,
@@ -547,6 +574,7 @@ def criar_botoes_acao(
         fg_color=t.COR_FUNDO_CARD,
         hover_color=t.COR_BORDA,
         command=limpar,
-    ).pack(side="left")
+    )
+    btn_limpar.pack(side="left")
 
     return frame

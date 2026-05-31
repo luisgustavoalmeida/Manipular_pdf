@@ -3,11 +3,29 @@
 Módulo para junção de múltiplos arquivos PDF em um único PDF.
 """
 
+from __future__ import annotations
+
+import os
+import tempfile
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
 
-from progresso import RelatorioProgresso, percorrer
+from progresso import OperacaoCancelada, RelatorioProgresso, limpar_arquivos_gerados, percorrer
+
+
+def _salvar_pdf(escritor: PdfWriter, destino: Path) -> None:
+    """Grava o PDF de forma atômica (evita arquivo corrompido se interrompido)."""
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_path = tempfile.mkstemp(suffix=".pdf", dir=destino.parent)
+    os.close(fd)
+    try:
+        with open(temp_path, "wb") as arquivo:
+            escritor.write(arquivo)
+        os.replace(temp_path, destino)
+    except Exception:
+        Path(temp_path).unlink(missing_ok=True)
+        raise
 
 
 def juntar_pdfs(
@@ -38,15 +56,16 @@ def juntar_pdfs(
     if ordenar_por_nome:
         caminhos = sorted(caminhos, key=lambda p: p.name.lower())
 
-    caminho_saida = Path(caminho_saida)
-    caminho_saida.parent.mkdir(parents=True, exist_ok=True)
-
+    destino = Path(caminho_saida)
     escritor = PdfWriter()
-    for caminho in percorrer(caminhos, descricao="Juntando PDFs", progresso=progresso, unit="arquivo"):
-        escritor.append(PdfReader(str(caminho)))
+    try:
+        for caminho in percorrer(caminhos, descricao="Juntando PDFs", progresso=progresso, unit="arquivo"):
+            escritor.append(PdfReader(str(caminho)))
+        _salvar_pdf(escritor, destino)
+    except OperacaoCancelada:
+        limpar_arquivos_gerados([destino])
+        raise
+    finally:
+        escritor.close()
 
-    with open(caminho_saida, "wb") as arquivo:
-        escritor.write(arquivo)
-
-    escritor.close()
-    return str(caminho_saida)
+    return str(destino)

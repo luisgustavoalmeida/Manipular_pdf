@@ -20,7 +20,7 @@ from pathlib import Path
 import fitz
 from tqdm import tqdm
 
-from progresso import RelatorioProgresso, percorrer
+from progresso import OperacaoCancelada, RelatorioProgresso, limpar_arquivos_gerados, percorrer
 
 EXTENSOES_IMAGEM = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp"}
 EXTENSOES_TEXTO = {".txt", ".md", ".csv", ".log", ".json", ".xml"}
@@ -350,16 +350,20 @@ def converter_arquivos_para_pdfs_individuais(
     destino_dir.mkdir(parents=True, exist_ok=True)
 
     gerados: list[str] = []
-    for caminho in percorrer(
-        caminhos,
-        descricao="Convertendo arquivos",
-        progresso=progresso,
-        unit="arquivo",
-    ):
-        destino = _caminho_pdf_unico(destino_dir, f"{caminho.stem}.pdf")
-        gerados.append(converter_arquivo_para_pdf(caminho, destino))
+    try:
+        for caminho in percorrer(
+            caminhos,
+            descricao="Convertendo arquivos",
+            progresso=progresso,
+            unit="arquivo",
+        ):
+            destino = _caminho_pdf_unico(destino_dir, f"{caminho.stem}.pdf")
+            gerados.append(converter_arquivo_para_pdf(caminho, destino))
 
-    return gerados
+        return gerados
+    except OperacaoCancelada:
+        limpar_arquivos_gerados(gerados)
+        raise
 
 
 def converter_arquivos_para_pdf(
@@ -383,12 +387,17 @@ def converter_arquivos_para_pdf(
             raise ValueError(f"Formato não suportado: {caminho.name}")
 
     if len(caminhos) == 1:
-        if progresso:
-            progresso.iniciar(1, "Convertendo arquivo")
-            resultado = converter_arquivo_para_pdf(caminhos[0], caminho_saida)
-            progresso.concluir()
-            return resultado
-        return converter_arquivo_para_pdf(caminhos[0], caminho_saida)
+        destino = _normalizar_saida(caminhos[0], caminho_saida).resolve()
+        try:
+            if progresso:
+                progresso.iniciar(1, "Convertendo arquivo")
+                resultado = converter_arquivo_para_pdf(caminhos[0], caminho_saida)
+                progresso.concluir()
+                return resultado
+            return converter_arquivo_para_pdf(caminhos[0], caminho_saida)
+        except OperacaoCancelada:
+            limpar_arquivos_gerados([destino])
+            raise
 
     if caminho_saida:
         destino = _normalizar_saida(caminhos[0], caminho_saida).resolve()
@@ -407,6 +416,9 @@ def converter_arquivos_para_pdf(
             doc = _arquivo_para_documento(caminho, temporarios)
             documentos.append(doc)
         _unir_documentos(documentos, destino)
+    except OperacaoCancelada:
+        limpar_arquivos_gerados([destino])
+        raise
     finally:
         for doc in documentos:
             if not doc.is_closed:
@@ -463,46 +475,50 @@ def converter_pasta_para_pdf(
 
     gerados: list[str] = []
 
-    if progresso:
-        progresso.iniciar(total, "Convertendo pasta")
+    try:
+        if progresso:
+            progresso.iniciar(total, "Convertendo pasta")
 
-    if grupos["imagem"]:
-        if juntar_imagens:
-            caminho = destino_dir / "imagens.pdf"
-            if progresso:
-                progresso.avancar(0, "Unindo imagens")
-            _converter_imagens_lista(grupos["imagem"], caminho)
-            gerados.append(str(caminho))
-            if progresso:
-                progresso.avancar(len(grupos["imagem"]), "Imagens convertidas")
-        else:
-            for img in percorrer(
-                grupos["imagem"],
-                descricao="Imagens",
-                progresso=progresso,
-                unit="arquivo",
-                gerencia_ciclo=False,
-            ):
-                dest = destino_dir / f"{img.stem}.pdf"
-                converter_arquivo_para_pdf(img, dest)
-                gerados.append(str(dest))
+        if grupos["imagem"]:
+            if juntar_imagens:
+                caminho = destino_dir / "imagens.pdf"
+                if progresso:
+                    progresso.avancar(0, "Unindo imagens")
+                _converter_imagens_lista(grupos["imagem"], caminho)
+                gerados.append(str(caminho))
+                if progresso:
+                    progresso.avancar(len(grupos["imagem"]), "Imagens convertidas")
+            else:
+                for img in percorrer(
+                    grupos["imagem"],
+                    descricao="Imagens",
+                    progresso=progresso,
+                    unit="arquivo",
+                    gerencia_ciclo=False,
+                ):
+                    dest = destino_dir / f"{img.stem}.pdf"
+                    converter_arquivo_para_pdf(img, dest)
+                    gerados.append(str(dest))
 
-    outros = grupos["office"] + grupos["texto"] + grupos["html"]
-    for arq in percorrer(
-        outros,
-        descricao="Convertendo arquivos",
-        progresso=progresso,
-        unit="arquivo",
-        gerencia_ciclo=False,
-    ):
-        dest = destino_dir / f"{arq.stem}.pdf"
-        converter_arquivo_para_pdf(arq, dest)
-        gerados.append(str(dest))
+        outros = grupos["office"] + grupos["texto"] + grupos["html"]
+        for arq in percorrer(
+            outros,
+            descricao="Convertendo arquivos",
+            progresso=progresso,
+            unit="arquivo",
+            gerencia_ciclo=False,
+        ):
+            dest = destino_dir / f"{arq.stem}.pdf"
+            converter_arquivo_para_pdf(arq, dest)
+            gerados.append(str(dest))
 
-    if progresso:
-        progresso.concluir()
+        if progresso:
+            progresso.concluir()
 
-    return gerados
+        return gerados
+    except OperacaoCancelada:
+        limpar_arquivos_gerados(gerados)
+        raise
 
 
 # Compatibilidade com o módulo anterior

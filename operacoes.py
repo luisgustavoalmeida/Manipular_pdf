@@ -21,7 +21,7 @@ from editar_pdf import (
     rotacionar_paginas,
 )
 from juntar_pdf import juntar_pdfs
-from progresso import OperacaoCancelada, ProgressoParcial, RelatorioProgresso
+from progresso import OperacaoCancelada, ProgressoParcial, RelatorioProgresso, limpar_arquivos_gerados
 from traduzir_pdf import criar_pdf_duas_colunas, traduzir_pdf
 
 
@@ -224,6 +224,7 @@ def operacao_traduzir_2colunas(
             "Original à esquerda, tradução à direita.",
         )
     except OperacaoCancelada:
+        limpar_arquivos_gerados([caminho_traduzido, caminho_2colunas])
         raise
     except Exception as e:
         return _resultado_erro("PDF 2 colunas", pasta_origem, str(e))

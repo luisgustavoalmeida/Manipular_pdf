@@ -1,89 +1,170 @@
-# Manipulador PDF
+# Manipulador PDF · v2.0
+<!-- versao:2.0 -->
 
-Ferramenta em Python para **dividir**, **juntar**, **traduzir**, **converter**, **extrair**, **rotacionar** e **comprimir** arquivos PDF. Interface gráfica moderna por padrão; menu em terminal disponível com `--console`.
+Aplicação desktop para **Windows** que reúne, em uma única interface, as operações mais comuns sobre documentos PDF: dividir, juntar, traduzir, converter, extrair, rotacionar e comprimir. Disponível como **executável autônomo** (`ManipuladorPDF.exe`) ou como projeto Python para desenvolvimento e automação.
 
----
-
-## Sobre o projeto
-
-O **Manipulador PDF** (v2.0) permite trabalhar com documentos PDF de forma simples e visual. Ideal para manuais, apostilas e documentos técnicos.
-
-- **Interface gráfica:** janela com barra lateral, painéis por operação, barra de progresso e cancelamento (CustomTkinter).
-- **Interface em terminal:** menu interativo com cores e caixas (`python main.py --console`).
-- **Biblioteca:** funções importáveis para uso em scripts e automações.
-- **Tradução:** Google Translate com preservação de **formatação e imagens** (PyMuPDF).
+**Repositório:** [github.com/luisgustavoalmeida/Manipular_pdf](https://github.com/luisgustavoalmeida/Manipular_pdf)
 
 ---
 
-## Funcionalidades
+## Índice
 
-| Categoria | Função | Descrição |
-|-----------|--------|-----------|
-| **Dividir** | Por páginas | Gera vários PDFs com um número fixo de páginas (ex.: a cada 10 páginas). |
-| **Dividir** | Em N partes | Divide o PDF em N arquivos com quantidade de páginas equilibrada. |
-| **Juntar** | Juntar PDFs | Concatena vários PDFs em um único arquivo. |
-| **Traduzir** | Tradução completa | Gera PDF(s) traduzido(s), mantendo layout e imagens. Suporta um, vários ou todos os idiomas disponíveis. |
-| **Traduzir** | 2 colunas | Gera PDF com original e tradução lado a lado. |
-| **Converter** | Para PDF | Converte imagens, texto, HTML e documentos Office para PDF. |
-| **Editar** | Extrair páginas | Extrai páginas específicas (ex.: `1,3,5-10`). |
-| **Editar** | Rotacionar | Gira páginas selecionadas em 90° ou 180°. |
-| **Editar** | Comprimir | Reduz o tamanho do PDF (níveis leve, médio ou forte). |
+- [Visão geral](#visão-geral)
+- [Capturas de tela](#capturas-de-tela)
+- [Recursos da interface](#recursos-da-interface)
+- [Operações disponíveis](#operações-disponíveis)
+- [Conversão de formatos](#conversão-de-formatos)
+- [Tradução de PDFs](#tradução-de-pdfs)
+- [Requisitos](#requisitos)
+- [Instalação e uso rápido (executável)](#instalação-e-uso-rápido-executável)
+- [Instalação para desenvolvimento](#instalação-para-desenvolvimento)
+- [Uso](#uso)
+- [Gerar o executável (PyInstaller)](#gerar-o-executável-pyinstaller)
+- [Configuração](#configuração)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Arquitetura](#arquitetura)
+- [Dependências](#dependências)
+- [Solução de problemas](#solução-de-problemas)
 
-### Formatos aceitos na conversão
+---
 
-| Tipo | Extensões |
-|------|-----------|
-| Imagens | JPG, PNG, GIF, BMP, TIFF, WEBP |
+## Visão geral
+
+O **Manipulador PDF** foi pensado para fluxos do dia a dia com manuais, apostilas, relatórios e documentos técnicos. A versão 2.0 oferece interface gráfica moderna (CustomTkinter), execução em segundo plano com barra de progresso, cancelamento seguro e distribuição em um único arquivo `.exe` que **não exige Python instalado**.
+
+| Público | Como usar |
+|---------|-----------|
+| **Usuário final** | Baixe ou compile `ManipuladorPDF.exe` e execute com duplo clique |
+| **Desenvolvedor** | Clone o repositório, instale dependências e execute `python main.py` |
+| **Automação** | Importe os módulos Python ou a camada `operacoes.py` em scripts |
+
+---
+
+## Capturas de tela
+
+Interface gráfica com barra lateral, painéis por operação e alternância entre tema claro e escuro.
+
+| Tema claro | Tema escuro |
+|:--:|:--:|
+| ![Tela inicial — tema claro](Imagens/Tela%20inicial%20tema%20claro.png) | ![Tela inicial — tema escuro](Imagens/Tela%20inicial%20tema%20escuro.png) |
+| *Painel «Dividir PDF — a cada N páginas»* | *Mesma operação no tema escuro* |
+
+---
+
+## Recursos da interface
+
+| Recurso | Descrição |
+|---------|-----------|
+| **Barra lateral** | Nove operações agrupadas em cinco categorias (Dividir, Juntar, Traduzir, Converter, Editar) |
+| **Painéis por operação** | Seleção de arquivos e pastas, opções específicas e sugestão automática de nomes de saída |
+| **Progresso em tempo real** | Barra de status com etapa atual, tempo decorrido e estimativa restante |
+| **Cancelamento** | Interrompe operações longas; arquivos parciais gerados na execução cancelada são removidos automaticamente |
+| **Resultado** | Exibe arquivos gerados e permite abrir a pasta de saída no Explorador |
+| **Tema claro / escuro** | Alternância na barra lateral; preferência persistida automaticamente |
+| **Diálogo Sobre** | Informações do programa carregadas de `sobre.json` (botão ⓘ ao lado do tema) |
+| **Operação em segundo plano** | Ao trocar de painel durante uma execução, um banner indica o progresso e permite voltar ou cancelar |
+| **Diálogos nativos** | Seleção de arquivos e pastas com lembrança da última pasta utilizada |
+
+Preferências do usuário (tema, última pasta) são salvas em `%LOCALAPPDATA%\ManipuladorPDF\` quando executado como `.exe`, sem criar arquivos ao lado do executável.
+
+---
+
+## Operações disponíveis
+
+| Categoria | Operação | Descrição |
+|-----------|----------|-----------|
+| **Dividir** | A cada N páginas | Gera vários PDFs com tamanho fixo (ex.: 10 páginas por arquivo) |
+| **Dividir** | Em N partes iguais | Divide o documento em N arquivos com distribuição equilibrada de páginas |
+| **Juntar** | Juntar PDFs | Concatena múltiplos PDFs em um único arquivo, com ordenação por nome |
+| **Traduzir** | Traduzir PDF | Traduz o texto preservando layout, imagens e formatação (Google Translate) |
+| **Traduzir** | Original + tradução (2 col.) | Gera PDF com original à esquerda e tradução à direita, página a página |
+| **Converter** | Converter para PDF | Converte arquivos ou pastas inteiras para PDF (unir ou arquivos individuais) |
+| **Editar** | Extrair páginas | Extrai intervalos e páginas avulsas (ex.: `1,3,5-10`) |
+| **Editar** | Rotacionar páginas | Gira páginas selecionadas em 90° ou 180° |
+| **Editar** | Comprimir PDF | Reduz o tamanho do arquivo (níveis leve, médio ou forte) |
+
+---
+
+## Conversão de formatos
+
+| Tipo | Extensões suportadas |
+|------|----------------------|
+| Imagens | JPG, JPEG, PNG, GIF, BMP, TIFF, TIF, WEBP |
 | Texto | TXT, MD, CSV, LOG, JSON, XML |
 | Web | HTML, HTM |
 | Office | DOC, DOCX, XLS, XLSX, PPT, PPTX, ODT, ODS, ODP, RTF |
 
-> **Word, Excel e PowerPoint** exigem o [LibreOffice](https://www.libreoffice.org/download/download/) instalado. Imagens, texto e HTML funcionam sem instalação extra.
+**Conversão de pasta:** imagens podem ser unidas em um único PDF ou convertidas individualmente; demais formatos geram um PDF por arquivo.
 
-### Idiomas de tradução
+> **Documentos Office** (Word, Excel, PowerPoint) dependem do [LibreOffice](https://www.libreoffice.org/download/download/) instalado no sistema. Imagens, texto e HTML funcionam sem software adicional.
 
-Português, Inglês, Espanhol, Francês, Alemão, Italiano, Japonês, Chinês, Coreano, Russo, Árabe e Hindi.
+---
+
+## Tradução de PDFs
+
+- **Motor:** Google Translate via biblioteca `deep-translator`
+- **Preservação:** posição, fonte e layout original mantidos com PyMuPDF
+- **Paralelismo:** tradução em múltiplas threads (ajustável na interface, limitado aos núcleos do processador)
+- **Idiomas disponíveis:** Português, Inglês, Espanhol, Francês, Alemão, Italiano, Japonês, Chinês, Coreano, Russo, Árabe e Hindi
+- **Modos:** um idioma, vários idiomas ou todos os idiomas da lista
+- **Requisito:** conexão com a internet durante a tradução
 
 ---
 
 ## Requisitos
 
-- **Python** 3.10 ou superior
-- **Conexão com a internet** (apenas para tradução)
-- **LibreOffice** (opcional — apenas para conversão de documentos Office)
+### Executável (`ManipuladorPDF.exe`)
+
+| Item | Obrigatório |
+|------|-------------|
+| Windows 10 ou superior (64 bits) | Sim |
+| Python instalado | Não |
+| Conexão com a internet | Apenas para tradução |
+| LibreOffice | Opcional (conversão Office) |
+
+### Desenvolvimento (código-fonte)
+
+| Item | Obrigatório |
+|------|-------------|
+| Python 3.10 ou superior | Sim |
+| Conexão com a internet | Apenas para tradução |
 
 ---
 
-## Instalação
+## Instalação e uso rápido (executável)
 
-### 1. Clonar o repositório
+1. Obtenha `ManipuladorPDF.exe` (pasta `dist/` após compilar ou release do repositório).
+2. Copie o arquivo para a pasta desejada.
+3. Execute com duplo clique — não há instalador.
+
+As preferências ficam em `%LOCALAPPDATA%\ManipuladorPDF\config_usuario.json`.
+
+---
+
+## Instalação para desenvolvimento
 
 ```bash
 git clone https://github.com/luisgustavoalmeida/Manipular_pdf.git
 cd Manipular_pdf
 ```
 
-### 2. Criar ambiente virtual (recomendado)
-
-**Windows (PowerShell ou CMD):**
+**Windows:**
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-```
-
-**Linux / macOS:**
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 3. Instalar dependências
-
-```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
+
+**Linux / macOS** (interface gráfica e diálogos nativos foram projetados para Windows; o modo console pode funcionar):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Atalho alternativo no Windows: `executar.bat` (espera ambiente virtual `venv` ou `.venv` na pasta do projeto).
 
 ---
 
@@ -95,9 +176,11 @@ pip install -r requirements.txt
 python main.py
 ```
 
-**Windows:** você também pode usar o atalho `executar.bat` (usa o Python do ambiente virtual `venv` na pasta do projeto).
+### Versão instalada
 
-A janela organiza as operações em categorias na barra lateral. Cada painel permite selecionar arquivos, configurar opções e acompanhar o progresso. Ao concluir, os arquivos gerados podem ser abertos ou a pasta de saída pode ser exibida no explorador.
+```bash
+python main.py --version
+```
 
 ### Menu em terminal
 
@@ -105,52 +188,49 @@ A janela organiza as operações em categorias na barra lateral. Cada painel per
 python main.py --console
 ```
 
-| Opção | Ação |
-|-------|------|
-| **1** | Dividir PDF (a cada N páginas) |
-| **2** | Dividir PDF (em N partes iguais) |
-| **3** | Juntar PDFs |
-| **4** | Traduzir PDF (Google Translate) |
-| **5** | Traduzir PDF (original + tradução, 2 colunas) |
-| **6** | Converter arquivos para PDF |
-| **7** | Extrair páginas específicas |
-| **8** | Rotacionar páginas |
-| **9** | Comprimir / reduzir tamanho |
-| **0** | Sair |
+| Opção | Operação |
+|-------|----------|
+| 1 | Dividir PDF (a cada N páginas) |
+| 2 | Dividir PDF (em N partes iguais) |
+| 3 | Juntar PDFs |
+| 4 | Traduzir PDF |
+| 5 | Traduzir PDF (2 colunas) |
+| 6 | Converter arquivos para PDF |
+| 7 | Extrair páginas |
+| 8 | Rotacionar páginas |
+| 9 | Comprimir PDF |
+| 0 | Sair |
+
+> O executável `.exe` abre apenas a interface gráfica. O modo terminal está disponível ao rodar a partir do código-fonte.
 
 ### Uso como biblioteca
-
-Importe as funções nos seus scripts:
 
 ```python
 from dividir_pdf import dividir_por_paginas, dividir_em_partes
 from juntar_pdf import juntar_pdfs
 from traduzir_pdf import traduzir_pdf, criar_pdf_duas_colunas
-from editar_pdf import extrair_paginas, rotacionar_paginas, comprimir_pdf
-from converter_para_pdf import converter_arquivos_para_pdf
+from editar_pdf import extrair_paginas, rotacionar_paginas, comprimir_pdf, interpretar_paginas, obter_total_paginas
+from converter_para_pdf import converter_arquivos_para_pdf, converter_arquivos_para_pdfs_individuais
 
 # Dividir a cada 10 páginas
 dividir_por_paginas("documento.pdf", 10, pasta_saida="saida")
 
-# Dividir em 3 partes
-dividir_em_partes("documento.pdf", 3, pasta_saida="saida")
-
 # Juntar arquivos
 juntar_pdfs(["parte_01.pdf", "parte_02.pdf"], "completo.pdf")
 
-# Traduzir para português (mantém layout e imagens)
+# Traduzir para português
 traduzir_pdf("manual.pdf", "manual_pt.pdf", idioma_destino="pt")
 
-# Traduzir e gerar PDF em duas colunas (original + tradução)
-criar_pdf_duas_colunas("manual.pdf", "manual_2colunas.pdf", idioma_destino="pt")
+# Extrair páginas (interpretar_paginas converte "1,3,5-10" em índices 0-based)
+total = obter_total_paginas("doc.pdf")
+indices = interpretar_paginas("1,3,5-10", total)
+extrair_paginas("doc.pdf", indices, "paginas.pdf")
 
-# Extrair páginas, rotacionar e comprimir
-extrair_paginas("doc.pdf", "1,3,5-10", "paginas.pdf")
-rotacionar_paginas("doc.pdf", 90, "rotacionado.pdf", paginas="1-5")
+# Comprimir
 comprimir_pdf("doc.pdf", "comprimido.pdf", nivel="medio")
 ```
 
-Para integração com retorno estruturado (sucesso, arquivos gerados, mensagens), use o módulo `operacoes`:
+Camada unificada com retorno estruturado (`ResultadoOperacao`):
 
 ```python
 from operacoes import operacao_traduzir, operacao_juntar
@@ -162,18 +242,59 @@ if resultado.sucesso:
 
 ---
 
+## Gerar o executável (PyInstaller)
+
+```bash
+build_exe.bat
+```
+
+Ou manualmente:
+
+```bash
+pip install -r requirements-build.txt
+python -m PyInstaller --noconfirm --clean manipular_pdf.spec
+```
+
+**Saída:** `dist\ManipuladorPDF.exe` (~35 MB, arquivo único, sem janela de console).
+
+Arquivos relacionados:
+
+| Arquivo | Função |
+|---------|--------|
+| `manipular_pdf.spec` | Configuração do PyInstaller |
+| `build_exe.bat` | Script de build para Windows |
+| `requirements-build.txt` | Dependências de compilação |
+| `recursos.py` | Caminhos de recursos e configuração no modo empacotado |
+
+---
+
 ## Configuração
 
-As opções gerais ficam em `configuracoes.py`:
+### Código (`configuracoes.py`)
 
 | Variável | Descrição | Exemplo |
 |----------|-----------|---------|
-| `IDIOMA_TRADUCAO_PADRAO` | Idioma de destino padrão (ISO 639-1) | `"pt"`, `"en"` |
-| `TAMANHO_MINIMO_TEXTO_TRADUCAO` | Mínimo de caracteres para traduzir (evita números soltos) | `2` |
-| `NUMERO_WORKERS_TRADUCAO` | Threads para tradução em paralelo | `7` |
-| `MARGEM_ESQUERDA_TRADUCAO` / `MARGEM_DIREITA_TRADUCAO` | Margens do PDF traduzido (pontos) | `18`, `5` |
+| `IDIOMA_TRADUCAO_PADRAO` | Idioma de destino padrão (ISO 639-1) | `"pt"` |
+| `TAMANHO_MINIMO_TEXTO_TRADUCAO` | Mínimo de caracteres para traduzir | `2` |
+| `NUMERO_WORKERS_TRADUCAO` | Threads padrão na tradução | `7` |
+| `MARGEM_ESQUERDA_TRADUCAO` / `MARGEM_DIREITA_TRADUCAO` | Margens do PDF traduzido (pt) | `18` / `5` |
 
-A tradução usa **Google Translate** (biblioteca `deep-translator`). Para manuais grandes, a operação pode demorar e está sujeita a limites do serviço. O número de threads é ajustável na interface e limitado ao número de núcleos do processador.
+### Usuário (`config_usuario.json`)
+
+Criado automaticamente. Armazena tema (claro/escuro) e última pasta usada nos diálogos de arquivo.
+
+| Modo | Localização |
+|------|-------------|
+| Executável | `%LOCALAPPDATA%\ManipuladorPDF\` |
+| Desenvolvimento | Raiz do projeto (ignorado pelo Git) |
+
+### Versão
+
+Definida em [`constantes.py`](constantes.py) (`VERSAO_APLICACAO`). Para sincronizar a versão neste README:
+
+```bash
+python constantes.py
+```
 
 ---
 
@@ -181,37 +302,36 @@ A tradução usa **Google Translate** (biblioteca `deep-translator`). Para manua
 
 ```
 Manipular_pdf/
-├── main.py                    # Ponto de entrada (GUI ou --console)
-├── operacoes.py               # Lógica de negócio unificada (ResultadoOperacao)
-├── constantes.py              # Título, versão, idiomas disponíveis
-├── configuracoes.py           # Configurações (idioma, margens, workers)
-├── dividir_pdf.py             # Divisão (por páginas ou em N partes)
-├── juntar_pdf.py              # Junção de múltiplos PDFs
-├── traduzir_pdf.py            # Tradução com preservação de layout
-├── editar_pdf.py              # Extrair, rotacionar e comprimir
-├── converter_para_pdf.py      # Conversão de diversos formatos para PDF
-├── progresso.py               # Barras de progresso e cancelamento
-├── navegacao.py               # Diálogos e entrada no modo console
-├── interface_console.py       # Componentes visuais do terminal
-├── interface_grafica/         # Interface gráfica (CustomTkinter)
-│   ├── app.py                 # Janela principal
-│   ├── paineis.py             # Painéis por operação
-│   ├── componentes.py         # Widgets reutilizáveis
-│   └── tema.py                # Cores, fontes e dimensões
+├── main.py                      # Entrada: GUI, --console ou --version
+├── operacoes.py                 # Camada de negócio (ResultadoOperacao)
+├── constantes.py                # Versão, idiomas, metadados da GUI
+├── configuracoes.py             # Parâmetros de tradução e workers
+├── recursos.py                  # Caminhos (projeto, AppData, recursos empacotados)
+├── dividir_pdf.py               # Divisão por páginas ou em N partes
+├── juntar_pdf.py                # Junção de PDFs
+├── traduzir_pdf.py              # Tradução e PDF em 2 colunas
+├── editar_pdf.py                # Extrair, rotacionar, comprimir
+├── converter_para_pdf.py        # Conversão multi-formato
+├── progresso.py                 # Progresso, cancelamento e limpeza de parciais
+├── seletor_arquivos.py          # Diálogos nativos Windows
+├── navegacao.py                 # Fluxo do modo console
+├── interface_console.py         # UI do terminal
+├── interface_grafica/
+│   ├── app.py                   # Janela principal
+│   ├── paineis.py               # Painéis das nove operações
+│   ├── componentes.py           # Widgets reutilizáveis
+│   ├── tema.py                  # Tema claro/escuro
+│   ├── sobre.py                 # Diálogo Sobre (sobre.json)
+│   └── operacao_ativa.py        # Controle de execução em thread
+├── sobre.json                   # Conteúdo do diálogo Sobre
+├── Imagens/                     # Capturas de tela (README)
+├── manipular_pdf.spec           # PyInstaller
+├── build_exe.bat                # Build do .exe
 ├── requirements.txt
-├── executar.bat                 # Atalho Windows
+├── requirements-build.txt
+├── executar.bat
 └── README.md
 ```
-
-### Dependências principais
-
-| Biblioteca | Uso |
-|------------|-----|
-| **pypdf** | Divisão, junção e operações por página |
-| **PyMuPDF** | Tradução, compressão, conversão e layout avançado |
-| **deep-translator** | Tradução via Google Translate |
-| **customtkinter** | Interface gráfica |
-| **tqdm** | Barra de progresso (modo console e scripts) |
 
 ---
 
@@ -219,19 +339,83 @@ Manipular_pdf/
 
 O projeto separa **lógica de negócio**, **interfaces** e **módulos especializados**:
 
-- **`operacoes.py`** — camada intermediária que chama os módulos de PDF e retorna `ResultadoOperacao` padronizado. Usada tanto pela GUI quanto pelo console.
-- **`dividir_pdf` / `juntar_pdf`** — operações baseadas em cópia de páginas inteiras (pypdf).
-- **`traduzir_pdf`** — extrai blocos de texto com posição e fonte, traduz em paralelo e recoloca o texto na mesma região (PyMuPDF).
-- **`editar_pdf`** — extrair, rotacionar e comprimir páginas.
-- **`converter_para_pdf`** — converte imagens, texto, HTML e Office para PDF.
-- **`interface_grafica`** — janela com sidebar, painéis dinâmicos, execução em thread e cancelamento.
-- **`interface_console`** — menu interativo com cores ANSI e diálogos de arquivo nativos.
+```
+┌─────────────────┐     ┌─────────────────┐
+│ interface_grafica│     │ interface_console│
+│   (CustomTkinter)│     │   (menu terminal)│
+└────────┬────────┘     └────────┬────────┘
+         │                         │
+         └──────────┬──────────────┘
+                    ▼
+            ┌───────────────┐
+            │  operacoes.py │  ← ResultadoOperacao
+            └───────┬───────┘
+                    │
+    ┌───────────────┼───────────────┬──────────────────┐
+    ▼               ▼               ▼                  ▼
+dividir_pdf    juntar_pdf     traduzir_pdf      converter_para_pdf
+               editar_pdf     progresso.py
+```
+
+| Módulo | Responsabilidade |
+|--------|------------------|
+| `operacoes.py` | Orquestra operações e padroniza retorno para GUI e console |
+| `dividir_pdf` / `juntar_pdf` | Cópia de páginas inteiras com pypdf |
+| `traduzir_pdf` | Extração posicional de texto, tradução paralela e reposicionamento (PyMuPDF) |
+| `editar_pdf` | Extração, rotação e compressão; gravação atômica via arquivo temporário |
+| `converter_para_pdf` | Pipeline por tipo de arquivo; merge ou PDFs individuais |
+| `progresso.py` | Barra de progresso unificada, cancelamento cooperativo e limpeza de arquivos parciais |
 
 ### Decisões técnicas
 
-- **pypdf para dividir/juntar:** copia páginas sem interpretar conteúdo; leve e suficiente para essas tarefas.
-- **PyMuPDF para tradução e edição avançada:** acesso a posição, fonte e redação de texto na mesma área, preservando imagens e desenhos.
-- **Tradução em threads:** a lentidão está na API (I/O); um pool de threads envia vários trechos em paralelo.
-- **Duas interfaces, uma lógica:** `operacoes.py` evita duplicar regras de negócio entre GUI e terminal.
+- **pypdf** para dividir e juntar: operações leves sobre páginas completas, sem reinterpretar o conteúdo.
+- **PyMuPDF** para tradução, compressão e conversão avançada: acesso fino a layout, fontes e imagens.
+- **Tradução em threads:** gargalo na API externa (I/O); pool de threads acelera sem alterar qualidade.
+- **Gravação atômica:** junção, edição e conversão usam arquivo temporário + `replace` para evitar PDFs corrompidos.
+- **Uma lógica, duas interfaces:** regras de negócio centralizadas em `operacoes.py`.
 
 ---
+
+## Dependências
+
+| Biblioteca | Uso |
+|------------|-----|
+| [pypdf](https://pypi.org/project/pypdf/) | Divisão, junção e manipulação por página |
+| [PyMuPDF](https://pypi.org/project/PyMuPDF/) | Tradução, compressão, conversão e layout |
+| [deep-translator](https://pypi.org/project/deep-translator/) | Tradução via Google Translate |
+| [customtkinter](https://pypi.org/project/customtkinter/) | Interface gráfica |
+| [tqdm](https://pypi.org/project/tqdm/) | Progresso no modo console |
+
+**Externo (opcional):** [LibreOffice](https://www.libreoffice.org/download/download/) — conversão de documentos Office.
+
+---
+
+## Solução de problemas
+
+| Situação | O que fazer |
+|----------|-------------|
+| Windows SmartScreen ao abrir o `.exe` | Normal em builds locais; confirme a origem do arquivo ou assine o executável em produção |
+| Tradução falha ou demora muito | Verifique a internet; reduza threads; documentos muito grandes podem atingir limites do Google Translate |
+| Conversão Office não funciona | Instale o LibreOffice e verifique se `soffice.exe` está no PATH ou nos caminhos padrão do Windows |
+| Preferências não salvam | Confirme permissão de escrita em `%LOCALAPPDATA%\ManipuladorPDF\` |
+| Erro ao compilar com PyInstaller | Use `requirements-build.txt`; execute o build dentro do ambiente virtual do projeto |
+
+---
+
+## Versão e histórico
+
+Versão atual: **2.0**
+
+| Versão | Destaques |
+|--------|-----------|
+| **2.0** | Interface gráfica, nove operações, executável Windows, tema claro/escuro, diálogo Sobre, cancelamento com limpeza de parciais, conversão ampliada |
+| **1.0** | Versão inicial: dividir, juntar e traduzir (modo terminal) |
+
+---
+
+## Autor
+
+**Luís Gustavo de Almeida** — Engenheiro Eletricista, Engenheiro de Software  
+[LinkedIn](https://www.linkedin.com/in/luís-gustavo-de-almeida)
+
+Programa gratuito. Contribuições e feedback via [Issues](https://github.com/luisgustavoalmeida/Manipular_pdf/issues) no GitHub.

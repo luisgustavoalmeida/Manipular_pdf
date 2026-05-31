@@ -348,8 +348,13 @@ def criar_pdf_duas_colunas(
 
         doc_saida.save(str(path_saida), garbage=4, deflate=True)
         doc_saida.close()
+    except OperacaoCancelada:
+        path_saida.unlink(missing_ok=True)
+        raise
     finally:
         doc_orig.close()
         doc_trad.close()
+        if "doc_saida" in locals() and not doc_saida.is_closed:
+            doc_saida.close()
 
     return str(path_saida)

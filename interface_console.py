@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-from constantes import TITULO_APLICACAO
+from constantes import titulo_com_versao
 LARGURA_MIN = 60
 LARGURA_MAX = 120
 
@@ -47,7 +47,7 @@ def _linha(simbolo: str = "═", largura: int | None = None) -> str:
     return simbolo * w
 
 
-def caixa_titulo(titulo: str = TITULO_APLICACAO) -> None:
+def caixa_titulo(titulo: str = titulo_com_versao()) -> None:
     w = largura_tela()
     texto = f" {titulo} "
     print()

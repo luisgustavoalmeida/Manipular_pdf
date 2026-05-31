@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import customtkinter as ctk
 
-from constantes import TITULO_APLICACAO, VERSAO_APLICACAO
+from constantes import TITULO_APLICACAO, texto_versao, titulo_com_versao
 from interface_grafica import tema as t
 from interface_grafica.componentes import BarraStatus, PainelResultado
+from interface_grafica.sobre import abrir_dialogo_sobre
 from interface_grafica.operacao_ativa import GerenciadorOperacoes
 from interface_grafica.paineis import CATEGORIAS, OPERACOES, PainelOperacao
 from operacoes import ResultadoOperacao
@@ -19,15 +20,21 @@ class AplicacaoPDF(ctk.CTk):
 
     def __init__(self):
         super().__init__()
-        self.title(TITULO_APLICACAO)
+        self.title(titulo_com_versao())
         self.geometry(f"{t.LARGURA_JANELA}x{t.ALTURA_JANELA}")
         self.minsize(800, 560)
+
+        t.inicializar_tema()
         self.configure(fg_color=t.COR_FUNDO)
 
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-
+        self._sidebar: ctk.CTkFrame | None = None
         self._paineis: dict[str, PainelOperacao] = {}
+        self._lbl_categorias: list[ctk.CTkLabel] = []
+        self._lbl_titulo_app: ctk.CTkLabel | None = None
+        self._lbl_versao_app: ctk.CTkLabel | None = None
+        self._separador_sidebar: ctk.CTkFrame | None = None
+        self._btn_tema: ctk.CTkButton | None = None
+        self._btn_sobre: ctk.CTkButton | None = None
         self._op_visivel: str | None = None
         self._botoes_nav: dict[str, ctk.CTkButton] = {}
         self._classes_painel = {op_id: cls for op_id, _, _, cls in OPERACOES}
@@ -46,51 +53,89 @@ class AplicacaoPDF(ctk.CTk):
         self._selecionar_operacao(OPERACOES[0][0])
 
     def _montar_sidebar(self) -> None:
-        sidebar = ctk.CTkFrame(
+        self._sidebar = ctk.CTkFrame(
             self,
             width=t.LARGURA_SIDEBAR,
             fg_color=t.COR_FUNDO_SECUNDARIO,
             corner_radius=0,
         )
+        sidebar = self._sidebar
         sidebar.grid(row=0, column=0, rowspan=2, sticky="nsew")
         sidebar.grid_propagate(False)
 
-        header = ctk.CTkFrame(sidebar, fg_color="transparent", height=t.ALTURA_CABECALHO)
-        header.pack(fill="x", padx=t.PADDING, pady=(t.PADDING, 8))
+        header = ctk.CTkFrame(sidebar, fg_color="transparent")
+        header.pack(fill="x", padx=t.PADDING, pady=(t.PADDING, 2))
 
         ctk.CTkLabel(header, text="📑", font=("Segoe UI", 28)).pack(anchor="w")
-        ctk.CTkLabel(
+        self._lbl_titulo_app = ctk.CTkLabel(
             header,
             text=TITULO_APLICACAO,
             font=t.FONT_TITULO,
             text_color=t.COR_TEXTO,
             anchor="w",
-        ).pack(anchor="w")
-        ctk.CTkLabel(
+        )
+        self._lbl_titulo_app.pack(anchor="w")
+        self._lbl_versao_app = ctk.CTkLabel(
             header,
-            text=f"v{VERSAO_APLICACAO}",
+            text=texto_versao(),
             font=t.FONT_PEQUENA,
             text_color=t.COR_TEXTO_SECUNDARIO,
             anchor="w",
-        ).pack(anchor="w")
+        )
+        self._lbl_versao_app.pack(anchor="w")
 
-        ctk.CTkFrame(sidebar, height=1, fg_color=t.COR_BORDA).pack(fill="x", padx=t.PADDING, pady=8)
+        barra_header = ctk.CTkFrame(header, fg_color="transparent")
+        barra_header.pack(anchor="w", pady=(2, 0))
+
+        self._btn_tema = ctk.CTkButton(
+            barra_header,
+            text=self._icone_tema(),
+            width=28,
+            height=24,
+            font=("Segoe UI", 12),
+            fg_color="transparent",
+            text_color=t.COR_TEXTO_SECUNDARIO,
+            hover_color=t.COR_FUNDO_CARD,
+            corner_radius=6,
+            command=self._alternar_tema_clique,
+        )
+        self._btn_tema.pack(side="left")
+
+        self._btn_sobre = ctk.CTkButton(
+            barra_header,
+            text="ⓘ",
+            width=28,
+            height=24,
+            font=("Segoe UI", 12),
+            fg_color="transparent",
+            text_color=t.COR_TEXTO_SECUNDARIO,
+            hover_color=t.COR_FUNDO_CARD,
+            corner_radius=6,
+            command=self._abrir_sobre,
+        )
+        self._btn_sobre.pack(side="left", padx=(4, 0))
+
+        self._separador_sidebar = ctk.CTkFrame(sidebar, height=1, fg_color=t.COR_BORDA)
+        self._separador_sidebar.pack(fill="x", padx=t.PADDING, pady=(4, 2))
 
         scroll = ctk.CTkScrollableFrame(sidebar, fg_color="transparent")
         scroll.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        self._scroll_sidebar = scroll
 
         ops_por_categoria: dict[str, list] = {}
         for op_id, titulo, cat_id, _ in OPERACOES:
             ops_por_categoria.setdefault(cat_id, []).append((op_id, titulo))
 
-        for cat_id, cat_titulo, cat_icone in CATEGORIAS:
-            ctk.CTkLabel(
+        for indice, (cat_id, cat_titulo, cat_icone) in enumerate(CATEGORIAS):
+            lbl_cat = ctk.CTkLabel(
                 scroll,
                 text=f"{cat_icone}  {cat_titulo}",
                 font=t.FONT_PEQUENA,
                 text_color=t.COR_TEXTO_SECUNDARIO,
                 anchor="w",
-            ).pack(fill="x", padx=8, pady=(12, 4))
+            )
+            lbl_cat.pack(fill="x", padx=8, pady=(4 if indice == 0 else 10, 4))
+            self._lbl_categorias.append(lbl_cat)
 
             for op_id, titulo in ops_por_categoria.get(cat_id, []):
                 btn = ctk.CTkButton(
@@ -163,7 +208,7 @@ class AplicacaoPDF(ctk.CTk):
             height=28,
             font=t.FONT_PEQUENA,
             fg_color=t.COR_ERRO,
-            hover_color="#c5221f",
+            hover_color=t.COR_ERRO_HOVER,
             command=self._cancelar_operacao_ativa,
         )
         self.btn_banner_cancelar.grid(row=0, column=1, padx=(0, 8), pady=10)
@@ -226,7 +271,11 @@ class AplicacaoPDF(ctk.CTk):
                     text=f"⏳ {titulo}",
                 )
             elif oid == op_id:
-                btn.configure(fg_color=t.COR_PRIMARIA, text_color="#ffffff", text=titulo)
+                btn.configure(
+                    fg_color=t.COR_PRIMARIA,
+                    text_color=t.COR_TEXTO_BOTAO_ATIVO,
+                    text=titulo,
+                )
             else:
                 btn.configure(fg_color="transparent", text_color=t.COR_TEXTO, text=titulo)
 
@@ -397,6 +446,37 @@ class AplicacaoPDF(ctk.CTk):
             self.status.atualizar_progresso(op.fracao, status_txt)
         elif not self._operacoes.esta_executando():
             self.status.definir("Pronto")
+
+    def _abrir_sobre(self) -> None:
+        abrir_dialogo_sobre(self)
+
+    @staticmethod
+    def _icone_tema() -> str:
+        """Ícone do modo para o qual o clique alterna (☀ claro / 🌙 escuro)."""
+        return "☀" if t.MODO_ATUAL == "dark" else "🌙"
+
+    def _alternar_tema_clique(self) -> None:
+        self._aplicar_modo_tema("light" if t.MODO_ATUAL == "dark" else "dark")
+
+    def _aplicar_modo_tema(self, modo: t.ModoAparencia) -> None:
+        if modo == t.MODO_ATUAL:
+            return
+        t.aplicar_tema(modo)
+        self._pos_tema_alterado()
+
+    def _atualizar_botao_tema(self) -> None:
+        if self._btn_tema:
+            self._btn_tema.configure(text=self._icone_tema())
+
+    def _pos_tema_alterado(self) -> None:
+        """Reaplica estados visuais após troca de tema."""
+        t.forcar_redesenho_tema(self)
+
+        if self._op_visivel:
+            self._atualizar_nav(self._op_visivel)
+
+        self._atualizar_botao_tema()
+        self.update_idletasks()
 
 
 def iniciar_aplicacao() -> None:

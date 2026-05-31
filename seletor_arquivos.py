@@ -9,7 +9,8 @@ import os
 import sys
 from pathlib import Path
 
-ARQUIVO_CONFIG = Path(__file__).resolve().parent / "config_usuario.json"
+from recursos import caminho_config_usuario
+
 CHAVE_ULTIMA_PASTA = "ultima_pasta"
 
 
@@ -18,10 +19,11 @@ def dialogos_disponiveis() -> bool:
 
 
 def _carregar_ultima_pasta() -> str | None:
-    if not ARQUIVO_CONFIG.exists():
+    arquivo = caminho_config_usuario()
+    if not arquivo.exists():
         return None
     try:
-        with open(ARQUIVO_CONFIG, "r", encoding="utf-8") as f:
+        with open(arquivo, "r", encoding="utf-8") as f:
             dados = json.load(f)
         pasta = dados.get(CHAVE_ULTIMA_PASTA)
         if pasta and Path(pasta).is_dir():
@@ -37,16 +39,18 @@ def _salvar_ultima_pasta(caminho: str | Path) -> None:
     if not pasta.is_dir():
         return
     pasta_str = str(pasta.resolve())
+    arquivo = caminho_config_usuario()
     dados: dict = {}
-    if ARQUIVO_CONFIG.exists():
+    if arquivo.exists():
         try:
-            with open(ARQUIVO_CONFIG, "r", encoding="utf-8") as f:
+            with open(arquivo, "r", encoding="utf-8") as f:
                 dados = json.load(f)
         except Exception:
             dados = {}
     dados[CHAVE_ULTIMA_PASTA] = pasta_str
     try:
-        with open(ARQUIVO_CONFIG, "w", encoding="utf-8") as f:
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        with open(arquivo, "w", encoding="utf-8") as f:
             json.dump(dados, f, indent=2, ensure_ascii=False)
     except Exception:
         pass

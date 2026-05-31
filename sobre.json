@@ -1,0 +1,72 @@
+{
+  "titulo": "Sobre o programa",
+  "subtitulo": "Manipulador PDF — ferramenta para trabalhar com documentos PDF",
+  "aplicacao": {
+    "nome": "Manipulador PDF",
+    "nome_completo": "Manipulador PDF",
+    "versao": "2.0",
+    "data_versao": "2026-05-31",
+    "versao_formato_dados": 1,
+    "executavel": "ManipuladorPDF.exe",
+    "descricao": "Aplicação desktop para Windows que divide, junta, traduz, converte, extrai, rotaciona e comprime arquivos PDF. Não exige Python instalado — basta executar o ManipuladorPDF.exe. Interface gráfica com barra lateral, progresso e cancelamento. A tradução preserva formatação e imagens via Google Translate.",
+    "data_lancamento": "2026-03-01",
+    "ultima_atualizacao": "2026-05-31",
+    "plataforma": "Windows 10 ou superior (64 bits)"
+  },
+  "criador": {
+    "nome": "Luís Gustavo de Almeida",
+    "papel": "Engenheiro Eletricista, Engenheiro de Software",
+    "organizacao": "Megawatt Sistemas",
+    "email_profissional": "luis.gustavo@megawatt.net.br",
+    "email_pessoal": "lga.gustavo.a@gmail.com",
+    "linkedin": "https://www.linkedin.com/in/luís-gustavo-de-almeida",
+    "discord": "luisgustavoalmeida"
+  },
+  "repositorio": {
+    "nome": "Manipular_pdf",
+    "url": "https://github.com/luisgustavoalmeida/Manipular_pdf",
+    "documentacao": "README.md no repositório GitHub"
+  },
+  "doacao": {
+    "mensagem": "Este programa é gratuito. Se quiser apoiar o desenvolvimento, pode enviar uma doação voluntária via PIX.",
+    "chave_pix": "CPF 069.524.336-51"
+  },
+  "funcionalidades": [
+    "Dividir PDF a cada N páginas ou em N partes equilibradas",
+    "Juntar vários PDFs em um único arquivo",
+    "Traduzir PDF mantendo layout, imagens e formatação (Google Translate)",
+    "Gerar PDF em duas colunas (original e tradução lado a lado)",
+    "Converter imagens, texto, HTML e documentos Office para PDF",
+    "Extrair páginas específicas (ex.: 1,3,5-10)",
+    "Rotacionar páginas selecionadas (90° ou 180°)",
+    "Comprimir PDF com níveis leve, médio ou forte",
+    "Barra de progresso e cancelamento de operações",
+    "Tema claro/escuro com preferência salva automaticamente",
+    "Limpeza automática de arquivos parciais ao cancelar uma operação"
+  ],
+  "historico_versoes": [
+    {
+      "versao": "2.0",
+      "data": "2026-05-31",
+      "notas": "Versão executável para Windows (ManipuladorPDF.exe), interface gráfica com nove operações, tema claro/escuro, diálogo Sobre, cancelamento com limpeza de arquivos parciais e conversão ampliada (imagens, texto, HTML, Office)."
+    },
+    {
+      "versao": "1.0",
+      "data": "2026-03-01",
+      "notas": "Versão inicial com dividir, juntar e traduzir PDF."
+    }
+  ],
+  "requisitos": [
+    "Windows 10 ou superior (64 bits)",
+    "Não é necessário instalar Python",
+    "Conexão à internet (apenas para tradução via Google Translate)"
+  ],
+  "instalacao": [
+    "Copie ManipuladorPDF.exe para a pasta desejada",
+    "Execute com duplo clique — não precisa de instalador",
+    "Preferências (tema e última pasta) ficam salvas em %LOCALAPPDATA%\\ManipuladorPDF"
+  ],
+  "tecnologias": [
+    { "nome": "Google Translate", "uso": "Tradução de textos do PDF" }
+  ]
+}

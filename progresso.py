@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 from typing import Callable, Iterable, Protocol, TypeVar, runtime_checkable
 
 from tqdm import tqdm
@@ -14,6 +15,15 @@ T = TypeVar("T")
 
 class OperacaoCancelada(Exception):
     """Sinaliza que o usuário solicitou interromper a operação em andamento."""
+
+
+def limpar_arquivos_gerados(caminhos: list[str | Path]) -> None:
+    """Remove arquivos produzidos por uma operação cancelada."""
+    for caminho in caminhos:
+        try:
+            Path(caminho).unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 class ControleCancelamento:
