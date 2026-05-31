@@ -1,40 +1,56 @@
+# Manipulador PDF
 
-# Manipulador de PDF - Tradutor automático
-
-Ferramenta em Python para **dividir**, **juntar** e **traduzir** arquivos PDF com interface em terminal.
-
-<p align="center">
-  <img src="imagem ilustrativa/Automação de tradução de manuais técnicos.png" alt="Automação na tradução de manuais técnicos" width="100%">
-</p>
+Ferramenta em Python para **dividir**, **juntar**, **traduzir**, **converter**, **extrair**, **rotacionar** e **comprimir** arquivos PDF. Interface gráfica moderna por padrão; menu em terminal disponível com `--console`.
 
 ---
 
 ## Sobre o projeto
 
-O **Manipulador de PDF** permite trabalhar com documentos PDF de forma simples: dividir por número de páginas ou em partes iguais, unir vários arquivos em um só e traduzir o conteúdo preservando **formatação e imagens**. Ideal para manuais, apostilas e documentos técnicos.
+O **Manipulador PDF** (v2.0) permite trabalhar com documentos PDF de forma simples e visual. Ideal para manuais, apostilas e documentos técnicos.
 
-- **Interface:** menu interativo no terminal (Windows e Linux/macOS) com cores e caixas.
+- **Interface gráfica:** janela com barra lateral, painéis por operação, barra de progresso e cancelamento (CustomTkinter).
+- **Interface em terminal:** menu interativo com cores e caixas (`python main.py --console`).
 - **Biblioteca:** funções importáveis para uso em scripts e automações.
-- **Tradução:** Google Translate (padrão); layout e imagens mantidos com PyMuPDF.
+- **Tradução:** Google Translate com preservação de **formatação e imagens** (PyMuPDF).
 
 ---
 
 ## Funcionalidades
 
-| Função | Descrição |
-|--------|-----------|
-| **Dividir por páginas** | Gera vários PDFs com um número fixo de páginas (ex.: a cada 5 páginas). |
-| **Dividir em N partes** | Divide o PDF em N arquivos com quantidade de páginas equilibrada. |
-| **Juntar PDFs** | Concatena vários PDFs em um único arquivo (com ordenação opcional por nome). |
-| **Traduzir PDF** | Gera um novo PDF com o texto traduzido, mantendo layout e imagens. |
-| **Traduzir em 2 colunas** | Gera um PDF com original e tradução lado a lado (duas colunas). |
+| Categoria | Função | Descrição |
+|-----------|--------|-----------|
+| **Dividir** | Por páginas | Gera vários PDFs com um número fixo de páginas (ex.: a cada 10 páginas). |
+| **Dividir** | Em N partes | Divide o PDF em N arquivos com quantidade de páginas equilibrada. |
+| **Juntar** | Juntar PDFs | Concatena vários PDFs em um único arquivo. |
+| **Traduzir** | Tradução completa | Gera PDF(s) traduzido(s), mantendo layout e imagens. Suporta um, vários ou todos os idiomas disponíveis. |
+| **Traduzir** | 2 colunas | Gera PDF com original e tradução lado a lado. |
+| **Converter** | Para PDF | Converte imagens, texto, HTML e documentos Office para PDF. |
+| **Editar** | Extrair páginas | Extrai páginas específicas (ex.: `1,3,5-10`). |
+| **Editar** | Rotacionar | Gira páginas selecionadas em 90° ou 180°. |
+| **Editar** | Comprimir | Reduz o tamanho do PDF (níveis leve, médio ou forte). |
+
+### Formatos aceitos na conversão
+
+| Tipo | Extensões |
+|------|-----------|
+| Imagens | JPG, PNG, GIF, BMP, TIFF, WEBP |
+| Texto | TXT, MD, CSV, LOG, JSON, XML |
+| Web | HTML, HTM |
+| Office | DOC, DOCX, XLS, XLSX, PPT, PPTX, ODT, ODS, ODP, RTF |
+
+> **Word, Excel e PowerPoint** exigem o [LibreOffice](https://www.libreoffice.org/download/download/) instalado. Imagens, texto e HTML funcionam sem instalação extra.
+
+### Idiomas de tradução
+
+Português, Inglês, Espanhol, Francês, Alemão, Italiano, Japonês, Chinês, Coreano, Russo, Árabe e Hindi.
 
 ---
 
 ## Requisitos
 
-- **Python** 3.10 ou superior  
+- **Python** 3.10 ou superior
 - **Conexão com a internet** (apenas para tradução)
+- **LibreOffice** (opcional — apenas para conversão de documentos Office)
 
 ---
 
@@ -43,7 +59,7 @@ O **Manipulador de PDF** permite trabalhar com documentos PDF de forma simples: 
 ### 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/Manipular_pdf.git
+git clone https://github.com/luisgustavoalmeida/Manipular_pdf.git
 cd Manipular_pdf
 ```
 
@@ -73,17 +89,21 @@ pip install -r requirements.txt
 
 ## Uso
 
-### Menu interativo
-
-Execute o programa principal para abrir o menu:
+### Interface gráfica (padrão)
 
 ```bash
 python main.py
 ```
 
-**Windows:** você também pode usar o atalho `executar.bat` (usa o `python` do ambiente virtual na pasta do projeto).
+**Windows:** você também pode usar o atalho `executar.bat` (usa o Python do ambiente virtual `venv` na pasta do projeto).
 
-Opções do menu:
+A janela organiza as operações em categorias na barra lateral. Cada painel permite selecionar arquivos, configurar opções e acompanhar o progresso. Ao concluir, os arquivos gerados podem ser abertos ou a pasta de saída pode ser exibida no explorador.
+
+### Menu em terminal
+
+```bash
+python main.py --console
+```
 
 | Opção | Ação |
 |-------|------|
@@ -92,6 +112,10 @@ Opções do menu:
 | **3** | Juntar PDFs |
 | **4** | Traduzir PDF (Google Translate) |
 | **5** | Traduzir PDF (original + tradução, 2 colunas) |
+| **6** | Converter arquivos para PDF |
+| **7** | Extrair páginas específicas |
+| **8** | Rotacionar páginas |
+| **9** | Comprimir / reduzir tamanho |
 | **0** | Sair |
 
 ### Uso como biblioteca
@@ -102,6 +126,8 @@ Importe as funções nos seus scripts:
 from dividir_pdf import dividir_por_paginas, dividir_em_partes
 from juntar_pdf import juntar_pdfs
 from traduzir_pdf import traduzir_pdf, criar_pdf_duas_colunas
+from editar_pdf import extrair_paginas, rotacionar_paginas, comprimir_pdf
+from converter_para_pdf import converter_arquivos_para_pdf
 
 # Dividir a cada 10 páginas
 dividir_por_paginas("documento.pdf", 10, pasta_saida="saida")
@@ -117,6 +143,21 @@ traduzir_pdf("manual.pdf", "manual_pt.pdf", idioma_destino="pt")
 
 # Traduzir e gerar PDF em duas colunas (original + tradução)
 criar_pdf_duas_colunas("manual.pdf", "manual_2colunas.pdf", idioma_destino="pt")
+
+# Extrair páginas, rotacionar e comprimir
+extrair_paginas("doc.pdf", "1,3,5-10", "paginas.pdf")
+rotacionar_paginas("doc.pdf", 90, "rotacionado.pdf", paginas="1-5")
+comprimir_pdf("doc.pdf", "comprimido.pdf", nivel="medio")
+```
+
+Para integração com retorno estruturado (sucesso, arquivos gerados, mensagens), use o módulo `operacoes`:
+
+```python
+from operacoes import operacao_traduzir, operacao_juntar
+
+resultado = operacao_traduzir("manual.pdf", [("pt", "Português")])
+if resultado.sucesso:
+    print(resultado.arquivos)
 ```
 
 ---
@@ -132,7 +173,7 @@ As opções gerais ficam em `configuracoes.py`:
 | `NUMERO_WORKERS_TRADUCAO` | Threads para tradução em paralelo | `7` |
 | `MARGEM_ESQUERDA_TRADUCAO` / `MARGEM_DIREITA_TRADUCAO` | Margens do PDF traduzido (pontos) | `18`, `5` |
 
-A tradução usa **Google Translate** (biblioteca `deep-translator`). Para manuais grandes, a operação pode demorar e está sujeita a limites do serviço.
+A tradução usa **Google Translate** (biblioteca `deep-translator`). Para manuais grandes, a operação pode demorar e está sujeita a limites do serviço. O número de threads é ajustável na interface e limitado ao número de núcleos do processador.
 
 ---
 
@@ -140,54 +181,57 @@ A tradução usa **Google Translate** (biblioteca `deep-translator`). Para manua
 
 ```
 Manipular_pdf/
-├── main.py              # Menu principal e interface em terminal
-├── dividir_pdf.py       # Divisão (por páginas ou em N partes)
-├── juntar_pdf.py        # Junção de múltiplos PDFs
-├── traduzir_pdf.py      # Tradução com preservação de layout e imagens
-├── configuracoes.py     # Configurações (idioma, margens, workers)
-├── requirements.txt    # Dependências Python
-├── executar.bat        # Atalho de execução no Windows
-├── LICENSE
+├── main.py                    # Ponto de entrada (GUI ou --console)
+├── operacoes.py               # Lógica de negócio unificada (ResultadoOperacao)
+├── constantes.py              # Título, versão, idiomas disponíveis
+├── configuracoes.py           # Configurações (idioma, margens, workers)
+├── dividir_pdf.py             # Divisão (por páginas ou em N partes)
+├── juntar_pdf.py              # Junção de múltiplos PDFs
+├── traduzir_pdf.py            # Tradução com preservação de layout
+├── editar_pdf.py              # Extrair, rotacionar e comprimir
+├── converter_para_pdf.py      # Conversão de diversos formatos para PDF
+├── progresso.py               # Barras de progresso e cancelamento
+├── navegacao.py               # Diálogos e entrada no modo console
+├── interface_console.py       # Componentes visuais do terminal
+├── interface_grafica/         # Interface gráfica (CustomTkinter)
+│   ├── app.py                 # Janela principal
+│   ├── paineis.py             # Painéis por operação
+│   ├── componentes.py         # Widgets reutilizáveis
+│   └── tema.py                # Cores, fontes e dimensões
+├── requirements.txt
+├── executar.bat                 # Atalho Windows
 └── README.md
 ```
 
 ### Dependências principais
 
-- **pypdf** — divisão e junção de PDFs  
-- **PyMuPDF** — leitura/escrita avançada (layout e imagens na tradução)  
-- **deep-translator** — tradução (Google Translate)  
-- **tqdm** — barra de progresso  
+| Biblioteca | Uso |
+|------------|-----|
+| **pypdf** | Divisão, junção e operações por página |
+| **PyMuPDF** | Tradução, compressão, conversão e layout avançado |
+| **deep-translator** | Tradução via Google Translate |
+| **customtkinter** | Interface gráfica |
+| **tqdm** | Barra de progresso (modo console e scripts) |
 
 ---
 
-## Como o projeto foi feito
+## Arquitetura
 
-Resumo da arquitetura, dos recursos utilizados e do papel de cada biblioteca no projeto.
+O projeto separa **lógica de negócio**, **interfaces** e **módulos especializados**:
 
-### Arquitetura
-
-O projeto é organizado em **módulos por função**: `dividir_pdf`, `juntar_pdf` e `traduzir_pdf` expõem funções puras (entrada/saída bem definida), e o `main.py` cuida da **interface em terminal** (menu, caixas, cores, leitura de caminhos) e chama essas funções. Assim, o mesmo código serve tanto para uso interativo quanto para importação em outros scripts.
-
-- **Dividir e juntar:** operações baseadas em páginas inteiras (copiar referências de páginas), sem interpretar texto ou imagens.
-- **Traduzir:** fluxo em etapas: extrair blocos de texto com posição e fonte → traduzir em paralelo → recolocar o texto traduzido na mesma região do original, preservando imagens e layout.
-
-### Recursos e uso de cada biblioteca
-
-| Recurso | Uso no projeto |
-|--------|-----------------|
-| **pypdf** (`PdfReader`, `PdfWriter`) | **Dividir:** lê o PDF, cria um `PdfWriter` por parte e adiciona as páginas correspondentes com `add_page()`. **Juntar:** um único `PdfWriter` que faz `append()` de cada `PdfReader`. Leve e suficiente para copiar páginas sem alterar conteúdo. |
-| **PyMuPDF** (`fitz`) | **Traduzir:** abre o PDF e, por página, usa `get_text("dict")` para obter blocos de texto com **posição (bbox), tamanho da fonte e nome da fonte**. Traduz os blocos (em paralelo), depois usa **redação** (`add_redact_annot` + `apply_redactions`) para substituir o texto no mesmo retângulo, mantendo imagens e layout. **Duas colunas:** cria uma página com largura dupla e desenha original e traduzido lado a lado com `show_pdf_page()`. |
-| **deep-translator** (`GoogleTranslator`) | Envio de trechos de texto para o **Google Translate**. Detecção automática de idioma de origem quando não informada. Uso com **até 3 tentativas** em caso de falha de rede. |
-| **tqdm** | **Barras de progresso** em todas as operações: número de partes ao dividir, número de arquivos ao juntar, número de páginas ao traduzir. |
-| **ThreadPoolExecutor** (biblioteca padrão) | Na tradução, **vários blocos de texto da mesma página** são enviados ao Google em paralelo (até `NUMERO_WORKERS_TRADUCAO` threads), aproveitando o tempo de espera da API e reduzindo o tempo total. |
+- **`operacoes.py`** — camada intermediária que chama os módulos de PDF e retorna `ResultadoOperacao` padronizado. Usada tanto pela GUI quanto pelo console.
+- **`dividir_pdf` / `juntar_pdf`** — operações baseadas em cópia de páginas inteiras (pypdf).
+- **`traduzir_pdf`** — extrai blocos de texto com posição e fonte, traduz em paralelo e recoloca o texto na mesma região (PyMuPDF).
+- **`editar_pdf`** — extrair, rotacionar e comprimir páginas.
+- **`converter_para_pdf`** — converte imagens, texto, HTML e Office para PDF.
+- **`interface_grafica`** — janela com sidebar, painéis dinâmicos, execução em thread e cancelamento.
+- **`interface_console`** — menu interativo com cores ANSI e diálogos de arquivo nativos.
 
 ### Decisões técnicas
 
-- **pypdf para dividir/juntar:** não é necessário acessar texto ou gráficos por elemento; apenas copiar páginas. O pypdf é simples e evita dependência pesada para essas tarefas.
-- **PyMuPDF para tradução:** é preciso **posição e estilo de cada trecho** para recolocar o texto traduzido no mesmo lugar. O PyMuPDF oferece extração de texto com bbox e fonte e o mecanismo de redação para “pintar” o texto novo na mesma área, mantendo o restante da página (imagens, desenhos) intacto.
-- **Tradução em threads:** a lentidão está no acesso à API (I/O), não no processamento local. Usar um pool de threads permite enviar vários trechos ao mesmo tempo e manter a ordem dos resultados por índice para não alterar o layout.
-- **Interface no terminal:** uso de **Path** para caminhos (cross-platform), **UTF-8** no Windows para acentos, e **códigos ANSI** para cores e caixas, com fallback se o terminal não suportar.
-
+- **pypdf para dividir/juntar:** copia páginas sem interpretar conteúdo; leve e suficiente para essas tarefas.
+- **PyMuPDF para tradução e edição avançada:** acesso a posição, fonte e redação de texto na mesma área, preservando imagens e desenhos.
+- **Tradução em threads:** a lentidão está na API (I/O); um pool de threads envia vários trechos em paralelo.
+- **Duas interfaces, uma lógica:** `operacoes.py` evita duplicar regras de negócio entre GUI e terminal.
 
 ---
-

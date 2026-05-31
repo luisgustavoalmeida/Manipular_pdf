@@ -2,7 +2,7 @@
 venv/
 .venv/
 env/
-.env/
+ENV/
 
 # Bytecode e cache
 __pycache__/
@@ -16,6 +16,13 @@ dist/
 build/
 eggs/
 .eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
 
 # IDE / Editor
 .idea/
@@ -27,19 +34,24 @@ eggs/
 # Variáveis de ambiente e segredos
 .env
 .env.local
+.env.*
 *.key
 
-# Configuração local do usuário
+# Configuração local do usuário (última pasta usada nos diálogos)
 config_usuario.json
 
 # Sistema
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Saídas e arquivos locais
+# Arquivos locais, testes e saídas
 arquivo/
-HIPASE-E_OperationManual_(en)_Rev03 V8.05.00.pdf/
+saida/
+
+# Rascunhos e materiais de divulgação (não versionar)
+linkedin_post.txt
 linkedin_posts/
-# saida/
+
+# PDFs locais (descomente se não quiser versionar nenhum PDF)
 # *.pdf
-.gitignore

@@ -11,6 +11,8 @@ from pathlib import Path
 import fitz  # PyMuPDF
 from tqdm import tqdm
 
+from progresso import OperacaoCancelada, RelatorioProgresso, percorrer, verificar_cancelamento
+
 from configuracoes import (
     IDIOMA_TRADUCAO_PADRAO,
     NUMERO_WORKERS_TRADUCAO,
@@ -128,6 +130,7 @@ def traduzir_pdf(
     idioma_origem: str | None = None,
     provedor: str = "google",
     numero_workers: int | None = None,
+    progresso: RelatorioProgresso | None = None,
 ) -> str:
     """
     Gera um novo PDF com todo o texto traduzido, mantendo imagens e layout.
@@ -173,73 +176,91 @@ def traduzir_pdf(
     _testar_api_traducao(idioma_origem, idioma_destino)
 
     paginas_sem_texto = 0
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        for indice_pagina in tqdm(range(total_paginas), desc="Traduzindo PDF", unit="página"):
-            pagina = documento[indice_pagina]
-            blocos = _obter_blocos_de_texto(pagina)
+    if progresso:
+        progresso.iniciar(total_paginas, "Traduzindo PDF")
 
-            if not blocos:
-                paginas_sem_texto += 1
-                continue
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            iter_paginas = range(total_paginas)
+            if progresso is None:
+                iter_paginas = tqdm(iter_paginas, desc="Traduzindo PDF", unit="página")
 
-            # Submete todas as traduções da página em paralelo (mantém ordem pelos índices)
-            futuras = {
-                executor.submit(
-                    _traduzir_bloco_em_thread,
-                    i,
-                    bloco["texto"],
-                    idioma_origem,
-                    idioma_destino,
-                    provedor,
-                ): i
-                for i, bloco in enumerate(blocos)
-            }
+            for indice_pagina in iter_paginas:
+                verificar_cancelamento(progresso)
+                pagina = documento[indice_pagina]
+                blocos = _obter_blocos_de_texto(pagina)
 
-            # Coleta resultados na ordem dos blocos (qualidade e layout idênticos)
-            textos_traduzidos: list[str] = [""] * len(blocos)
-            for futura in as_completed(futuras):
-                indice, texto_trad = futura.result()
-                textos_traduzidos[indice] = texto_trad
-
-            # Guardar links antes da redação (apply_redactions pode removê-los)
-            links_pagina = pagina.get_links()
-
-            # Redação: substitui o texto na mesma área do bloco; o motor reduz a fonte para caber.
-            for bloco, texto_traduzido in zip(blocos, textos_traduzidos):
-                if not (texto_traduzido or texto_traduzido.strip()):
+                if not blocos:
+                    paginas_sem_texto += 1
+                    if progresso:
+                        progresso.avancar(1, f"Página {indice_pagina + 1}/{total_paginas}")
                     continue
-                bbox = bloco["bbox"]
-                rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
-                tamanho_orig = bloco["tamanho_fonte"]
-                fonte = bloco.get("fonte", "helv")
-                pagina.add_redact_annot(
-                    rect,
-                    text=texto_traduzido,
-                    fontsize=tamanho_orig,
-                    fontname=fonte,
-                    fill=(1, 1, 1),
-                    text_color=(0, 0, 0),
-                    cross_out=False,
-                )
-            pagina.apply_redactions()
 
-            # Reinserir links de navegação
-            for link in links_pagina:
-                try:
-                    pagina.insert_link(link)
-                except Exception:
-                    pass
+                futuras = {
+                    executor.submit(
+                        _traduzir_bloco_em_thread,
+                        i,
+                        bloco["texto"],
+                        idioma_origem,
+                        idioma_destino,
+                        provedor,
+                    ): i
+                    for i, bloco in enumerate(blocos)
+                }
 
-    if paginas_sem_texto > 0:
-        import sys
-        print(
-            f"\n  Aviso: {paginas_sem_texto} página(s) sem texto extraível "
-            "(pode ser PDF escaneado ou só imagens).",
-            file=sys.stderr,
-        )
+                textos_traduzidos: list[str] = [""] * len(blocos)
+                for futura in as_completed(futuras):
+                    verificar_cancelamento(progresso)
+                    indice, texto_trad = futura.result()
+                    textos_traduzidos[indice] = texto_trad
 
-    documento.save(str(caminho_saida), garbage=4, deflate=True)
-    documento.close()
+                links_pagina = pagina.get_links()
+
+                for bloco, texto_traduzido in zip(blocos, textos_traduzidos):
+                    if not (texto_traduzido or texto_traduzido.strip()):
+                        continue
+                    bbox = bloco["bbox"]
+                    rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
+                    tamanho_orig = bloco["tamanho_fonte"]
+                    fonte = bloco.get("fonte", "helv")
+                    pagina.add_redact_annot(
+                        rect,
+                        text=texto_traduzido,
+                        fontsize=tamanho_orig,
+                        fontname=fonte,
+                        fill=(1, 1, 1),
+                        text_color=(0, 0, 0),
+                        cross_out=False,
+                    )
+                pagina.apply_redactions()
+
+                for link in links_pagina:
+                    try:
+                        pagina.insert_link(link)
+                    except Exception:
+                        pass
+
+                if progresso:
+                    progresso.avancar(1, f"Página {indice_pagina + 1}/{total_paginas}")
+
+        if progresso:
+            progresso.concluir()
+
+        if paginas_sem_texto > 0:
+            import sys
+            print(
+                f"\n  Aviso: {paginas_sem_texto} página(s) sem texto extraível "
+                "(pode ser PDF escaneado ou só imagens).",
+                file=sys.stderr,
+            )
+
+        documento.save(str(caminho_saida), garbage=4, deflate=True)
+    except OperacaoCancelada:
+        if caminho_saida.exists():
+            caminho_saida.unlink()
+        raise
+    finally:
+        documento.close()
 
     return str(caminho_saida)
 
@@ -248,6 +269,7 @@ def criar_pdf_duas_colunas(
     caminho_original: str,
     caminho_traduzido: str,
     caminho_saida: str,
+    progresso: RelatorioProgresso | None = None,
 ) -> str:
     """
     Cria um PDF com duas colunas por página: esquerda = original, direita = traduzido.
@@ -285,7 +307,11 @@ def criar_pdf_duas_colunas(
 
         doc_saida = fitz.open()
 
+        if progresso:
+            progresso.iniciar(n, "Montando PDF em 2 colunas")
+
         for i in range(n):
+            verificar_cancelamento(progresso)
             page_orig = doc_orig[i]
             page_trad = doc_trad[i]
             r = page_orig.rect
@@ -313,6 +339,12 @@ def criar_pdf_duas_colunas(
                     nova_pagina.insert_link(link)
                 except Exception:
                     pass
+
+            if progresso:
+                progresso.avancar(1, f"Página {i + 1}/{n}")
+
+        if progresso:
+            progresso.concluir()
 
         doc_saida.save(str(path_saida), garbage=4, deflate=True)
         doc_saida.close()

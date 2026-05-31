@@ -1,386 +1,97 @@
 # -*- coding: utf-8 -*-
 """
 Programa principal para manipulação de arquivos PDF.
-Permite: dividir (por páginas ou em N partes), juntar e traduzir PDFs.
+Interface gráfica por padrão; use --console para o menu em terminal.
 """
 
-import json
-import os
+import argparse
 import sys
 from pathlib import Path
 
-# Ajusta encoding do console no Windows para exibir acentos corretamente
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
-        # Habilita cores ANSI no terminal do Windows (10+)
         import ctypes
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
     except Exception:
         pass
 
-# Permite importar módulos do projeto quando executado como script
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from dividir_pdf import dividir_em_partes, dividir_por_paginas
-from juntar_pdf import juntar_pdfs
-from traduzir_pdf import criar_pdf_duas_colunas, traduzir_pdf
-
-# --- Interface amigável (caixas, cores, ícones) ---
-TITULO_APLICACAO = " --- Manipulador PDF --- "
-LARGURA_MIN = 60
-LARGURA_MAX = 120
-C_RESET = "\033[0m"
-C_TITULO = "\033[1;36m"   # negrito ciano
-C_SUCESSO = "\033[1;32m"  # negrito verde
-C_AVISO = "\033[1;33m"    # negrito amarelo
-C_ERRO = "\033[1;31m"     # negrito vermelho
-C_DESTAQUE = "\033[1;37m" # negrito branco
-C_OPCAO = "\033[1;93m"    # amarelo claro — destaque para números das opções
-
-
-def _definir_titulo_janela(titulo: str) -> None:
-    """Define o texto da barra de título do CMD/terminal."""
-    if sys.platform == "win32":
-        try:
-            ctypes.windll.kernel32.SetConsoleTitleW(titulo)
-        except Exception:
-            pass
-    else:
-        try:
-            print(f"\033]0;{titulo}\007", end="", flush=True)
-        except Exception:
-            pass
-
-
-def _largura_tela() -> int:
-    """Retorna a largura interior da caixa (entre ║ e ║). Cada linha = '  ' + '║' + w + '║' = cols."""
-    try:
-        cols = os.get_terminal_size().columns
-        # 2 (indent) + 1 (║) + w + 1 (║) = cols  =>  w = cols - 4
-        w = cols - 4
-        return max(LARGURA_MIN, min(LARGURA_MAX, w))
-    except Exception:
-        return 70
+import interface_console as ui
+import navegacao as nav
+from constantes import (
+    IDIOMAS_DISPONIVEIS,
+    TITULO_APLICACAO,
+    normalizar_idioma_origem,
+    resolver_idioma_destino,
+)
+from converter_para_pdf import (
+    formatos_suportados_texto,
+    libreoffice_disponivel,
+    MSG_LIBREOFFICE,
+)
+from configuracoes import nucleos_disponiveis, threads_sugeridas_traducao
+from editar_pdf import obter_total_paginas
+from navegacao import OperacaoCancelada
+from operacoes import (
+    operacao_comprimir,
+    operacao_converter_arquivos,
+    operacao_converter_pasta,
+    operacao_dividir_em_partes,
+    operacao_dividir_por_paginas,
+    operacao_extrair_paginas,
+    operacao_juntar,
+    operacao_rotacionar,
+    operacao_traduzir,
+    operacao_traduzir_2colunas,
+    resolver_idiomas_por_indices,
+)
 
 
-def _linha(simbolo: str = "═", largura: int | None = None) -> str:
-    w = largura if largura is not None else _largura_tela()
-    return simbolo * w
+def _finalizar_operacao() -> None:
+    ui.aguardar_enter()
 
 
-def _caixa_titulo(titulo: str) -> None:
-    """Imprime cabeçalho em caixa ocupando toda a largura útil do terminal."""
-    w = _largura_tela()
-    print()
-    print(f"{C_TITULO}╔{_linha('═', w)}╗{C_RESET}")
-    # Largura interior da caixa = w (entre ║ e ║). Título centralizado nesse espaço.
-    espacos = w - len(titulo)
-    esq = max(0, espacos // 2)
-    dir_ = max(0, espacos - esq)
-    print(f"{C_TITULO}║{C_RESET}{' ' * esq}{C_DESTAQUE}{titulo}{C_RESET}{' ' * dir_}{C_TITULO}║{C_RESET}")
-    print(f"{C_TITULO}╚{_linha('═', w)}╝{C_RESET}")
-    print()
-
-
-def _secao(titulo: str) -> None:
-    """Imprime o título de uma seção (submenu) com estilo simples."""
-    print()
-    print(f"  {C_TITULO}▸ {titulo}{C_RESET}")
-    print(f"  {_linha('─', _largura_tela())}")
-    print()
-
-
-def _mensagem_ok(texto: str) -> None:
-    print(f"  {C_SUCESSO}✓{C_RESET} {texto}")
-
-
-def _mensagem_aviso(texto: str) -> None:
-    print(f"  {C_AVISO}⚠{C_RESET} {texto}")
-
-
-def _mensagem_erro(texto: str) -> None:
-    print(f"  {C_ERRO}✗{C_RESET} {texto}")
-
-
-def _pergunta(rotulo: str, default: str = "") -> str:
-    """Retorna o texto digitado; se default, mostra entre colchetes."""
-    if default:
-        return input(f"  {rotulo} [{default}]: ").strip().strip('"') or default
-    return input(f"  {rotulo}: ").strip().strip('"')
-
-
-def _caixa_resultado(titulo: str, pasta: Path, arquivos: list[str], mensagem_vazio: str = "") -> None:
-    """Mostra resultado em caixa: título, pasta e lista de arquivos. Cada linha tem largura interior = w."""
-    w = _largura_tela()
-
-    def linha_interior(texto: str) -> str:
-        """Preenche com espaços à direita até completar w caracteres."""
-        if len(texto) >= w:
-            return texto[:w]
-        return texto + " " * (w - len(texto))
-
-    print()
-    print(f"  {C_SUCESSO}╔{_linha('═', w)}╗{C_RESET}")
-    espacos = w - len(titulo)
-    esq, dir_ = max(0, espacos // 2), max(0, espacos - espacos // 2)
-    print(f"  {C_SUCESSO}║{C_RESET}{' ' * esq}{C_DESTAQUE}{titulo}{C_RESET}{' ' * dir_}{C_SUCESSO}║{C_RESET}")
-    print(f"  {C_SUCESSO}╠{_linha('═', w)}╣{C_RESET}")
-    path_str = str(pasta.resolve())
-    max_path = w - 2
-    path_display = (path_str[: max_path - 3] + "...") if len(path_str) > max_path else path_str
-    print(f"  {C_SUCESSO}║{C_RESET}{linha_interior('  ' + path_display)}{C_SUCESSO}║{C_RESET}")
-    print(f"  {C_SUCESSO}║{C_RESET}{linha_interior('')}{C_SUCESSO}║{C_RESET}")
-    if arquivos:
-        print(f"  {C_SUCESSO}║{C_RESET}{linha_interior('  Arquivos gerados (' + str(len(arquivos)) + '):')}{C_SUCESSO}║{C_RESET}")
-        for p in arquivos:
-            nome = Path(p).name
-            if len(nome) > w - 6:
-                nome = "..." + nome[-(w - 9) :]
-            print(f"  {C_SUCESSO}║{C_RESET}{linha_interior('    • ' + nome)}{C_SUCESSO}║{C_RESET}")
-    else:
-        print(f"  {C_SUCESSO}║{C_RESET}{linha_interior('  ' + (mensagem_vazio or 'Nenhum arquivo gerado.'))}{C_SUCESSO}║{C_RESET}")
-    print(f"  {C_SUCESSO}╚{_linha('═', w)}╝{C_RESET}")
-    print()
-
-# Arquivo onde as preferências do usuário são salvas (mesma pasta do programa)
-ARQUIVO_CONFIG_USUARIO = Path(__file__).resolve().parent / "config_usuario.json"
-
-# Tradução usa apenas Google Translate.
-MOTOR_TRADUCAO_GOOGLE = ("google", "Google Translate")
-
-# Idiomas disponíveis para tradução (código ISO, nome). Um arquivo por idioma na pasta do PDF de origem.
-IDIOMAS_DISPONIVEIS = [
-    ("pt", "Português"),
-    ("en", "Inglês"),
-    ("es", "Espanhol"),
-    ("fr", "Francês"),
-    ("de", "Alemão"),
-    ("it", "Italiano"),
-    ("ja", "Japonês"),
-    ("zh", "Chinês"),
-    ("ko", "Coreano"),
-    ("ru", "Russo"),
-    ("ar", "Árabe"),
-    ("hi", "Hindi"),
-]
-
-
-def _solicitar_caminho(mensagem: str, deve_existir: bool = True) -> str:
-    """Solicita um caminho ao usuário até ser válido."""
-    while True:
-        valor = input(f"  {mensagem} ").strip().strip('"')
-        if not valor:
-            _mensagem_aviso("Caminho não pode ser vazio.")
-            continue
-        caminho = Path(valor)
-        if deve_existir and not caminho.exists():
-            com_pdf = caminho if caminho.suffix.lower() == ".pdf" else caminho.with_suffix(caminho.suffix or ".pdf")
-            if com_pdf.exists() and com_pdf.is_file():
-                _mensagem_ok(f"Usando arquivo: {com_pdf.name}")
-                return str(com_pdf.resolve())
-            _mensagem_erro(f"Caminho não encontrado: {caminho}")
-            continue
-        return str(caminho.resolve())
-
-
-def _solicitar_arquivo_pdf(mensagem: str) -> str:
-    """Solicita o caminho de um arquivo PDF (não aceita pasta)."""
-    while True:
-        caminho_str = _solicitar_caminho(mensagem)
-        caminho = Path(caminho_str)
-        if caminho.is_dir():
-            _mensagem_aviso("Informe o caminho de um arquivo PDF (ex: arquivo.pdf), não de uma pasta.")
-            continue
-        if not caminho.is_file():
-            _mensagem_erro("O caminho não é um arquivo. Informe um arquivo PDF.")
-            continue
-        if caminho.suffix.lower() != ".pdf":
-            tentar = caminho.with_suffix(".pdf")
-            if tentar.exists():
-                _mensagem_ok(f"Arquivo encontrado: {tentar.name}")
-                return str(tentar.resolve())
-            _mensagem_aviso("Arquivo sem extensão .pdf. Continuando mesmo assim.")
-        return caminho_str
-
-
-def _solicitar_inteiro(mensagem: str, minimo: int = 1, maximo: int | None = None) -> int:
-    """Solicita um número inteiro dentro do intervalo."""
-    while True:
-        try:
-            valor = int(input(f"  {mensagem} ").strip())
-            if valor < minimo:
-                _mensagem_aviso(f"Digite um número >= {minimo}.")
-                continue
-            if maximo is not None and valor > maximo:
-                _mensagem_aviso(f"Digite um número <= {maximo}.")
-                continue
-            return valor
-        except ValueError:
-            _mensagem_aviso("Digite um número inteiro válido.")
-
-
-def _carregar_config_usuario() -> dict:
-    """Carrega configurações salvas pelo usuário (motor de tradução, etc.)."""
-    if ARQUIVO_CONFIG_USUARIO.exists():
-        try:
-            with open(ARQUIVO_CONFIG_USUARIO, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
-
-
-def _salvar_config_usuario(config: dict) -> None:
-    """Salva configurações do usuário em config_usuario.json."""
-    try:
-        with open(ARQUIVO_CONFIG_USUARIO, "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print(f"Aviso: não foi possível salvar configurações: {e}")
-
-
-def _mostrar_resumo_pasta_saida(pasta: Path, arquivos_gerados: list[str], titulo: str = "Resultado") -> None:
-    """Mostra claramente onde os arquivos foram salvos (evita procurar na pasta errada)."""
-    pasta_abs = pasta.resolve()
-    msg_vazio = "Nenhum arquivo gerado. Verifique erros acima (rede, etc.)."
-    _caixa_resultado(titulo, pasta_abs, arquivos_gerados, msg_vazio)
-    if sys.platform == "win32" and arquivos_gerados:
-        abrir = _pergunta("Abrir esta pasta no Explorador de Arquivos?", "N")
-        if abrir.lower() in ("s", "sim", "y", "yes"):
-            try:
-                os.startfile(str(pasta_abs))
-            except Exception as e:
-                _mensagem_erro(f"Não foi possível abrir: {e}")
-
-
-def executar_dividir_por_paginas() -> None:
-    """Fluxo: dividir PDF a cada N páginas."""
-    _secao("Dividir PDF — a cada N páginas")
-    arquivo = _solicitar_arquivo_pdf("Caminho do PDF")
-    paginas = _solicitar_inteiro("Quantas páginas por parte?", minimo=1)
-    pasta = _pergunta("Pasta de saída (Enter = mesma pasta do PDF)", "")
-    if pasta:
-        pasta = str(Path(pasta).resolve())
-    else:
-        pasta = None
-    try:
-        lista = dividir_por_paginas(arquivo, paginas, pasta_saida=pasta)
-        pasta_saida = Path(lista[0]).parent if lista else Path(arquivo).parent
-        _mostrar_resumo_pasta_saida(pasta_saida, lista, "Divisão concluída")
-    except Exception as e:
-        _mensagem_erro(str(e))
-
-
-def executar_dividir_em_partes() -> None:
-    """Fluxo: dividir PDF em N partes homogêneas."""
-    _secao("Dividir PDF — em N partes iguais")
-    arquivo = _solicitar_arquivo_pdf("Caminho do PDF")
-    partes = _solicitar_inteiro("Em quantas partes dividir?", minimo=1)
-    pasta = _pergunta("Pasta de saída (Enter = mesma pasta do PDF)", "")
-    if pasta:
-        pasta = str(Path(pasta).resolve())
-    else:
-        pasta = None
-    try:
-        lista = dividir_em_partes(arquivo, partes, pasta_saida=pasta)
-        pasta_saida = Path(lista[0]).parent if lista else Path(arquivo).parent
-        _mostrar_resumo_pasta_saida(pasta_saida, lista, "Divisão concluída")
-    except Exception as e:
-        _mensagem_erro(str(e))
-
-
-def executar_juntar() -> None:
-    """Fluxo: juntar vários PDFs em um."""
-    _secao("Juntar PDFs")
-    print("  Informe os caminhos dos PDFs (um por linha). Linha vazia para encerrar.")
-    print()
-    lista = []
-    while True:
-        caminho = input(f"  PDF #{len(lista) + 1}: ").strip().strip('"')
-        if not caminho:
-            break
-        p = Path(caminho)
-        if not p.exists():
-            _mensagem_erro(f"Arquivo não encontrado: {p}")
-            continue
-        lista.append(str(p.resolve()))
-        _mensagem_ok(f"Adicionado: {p.name}")
-    if not lista:
-        _mensagem_aviso("Nenhum arquivo informado.")
-        return
-    saida = _pergunta("Caminho do PDF de saída", "")
-    if not saida:
-        _mensagem_aviso("Caminho de saída não informado.")
-        return
-    saida = str(Path(saida).resolve())
-    try:
-        resultado = juntar_pdfs(lista, saida)
-        print()
-        _mensagem_ok(f"Arquivo gerado: {Path(resultado).name}")
-        print(f"  {resultado}")
-    except Exception as e:
-        _mensagem_erro(str(e))
-
-
-def _traduzir_para_idiomas(
-    arquivo: str,
-    idiomas: list[tuple[str, str]],
-    idioma_origem: str | None,
-) -> list[str]:
-    """Traduz o PDF para cada idioma usando Google Translate. Salva na mesma pasta do origem. Retorna lista de caminhos gerados."""
-    path_entrada = Path(arquivo)
-    pasta_origem = path_entrada.parent
-    stem = path_entrada.stem
-    sufixo = path_entrada.suffix
-    codigo_motor, nome_motor = MOTOR_TRADUCAO_GOOGLE
-    gerados = []
-    for codigo_idioma, nome_idioma in idiomas:
-        caminho_saida = pasta_origem / f"{stem}_{codigo_motor}_{codigo_idioma}{sufixo}"
-        try:
-            resultado = traduzir_pdf(
-                arquivo,
-                str(caminho_saida),
-                idioma_destino=codigo_idioma,
-                idioma_origem=idioma_origem,
-                provedor=codigo_motor,
-            )
-            gerados.append(resultado)
-            _mensagem_ok(f"{nome_idioma} → {caminho_saida.name}")
-        except Exception as e:
-            _mensagem_erro(f"{nome_idioma}: {e}")
-    return gerados
+def _mostrar_resultado(resultado) -> None:
+    nav.mostrar_resultado(
+        resultado.titulo,
+        resultado.pasta,
+        resultado.arquivos,
+        mensagem_vazio=resultado.detalhes,
+        oferecer_abrir_pasta=resultado.sucesso,
+    )
+    if not resultado.sucesso and resultado.detalhes:
+        ui.mensagem_erro(resultado.detalhes)
+    elif resultado.mensagem and resultado.sucesso:
+        ui.mensagem_ok(resultado.mensagem)
 
 
 def _escolher_idiomas() -> list[tuple[str, str]] | None:
-    """Pergunta ao usuário: um, vários ou todos os idiomas. Retorna lista de (código, nome) ou None se cancelar."""
-    print("  Traduzir para qual(is) idioma(s)?")
-    print("    1. Um idioma")
-    print("    2. Vários idiomas")
-    print("    3. Todos os disponíveis")
-    opcao = input("  Opção (1/2/3): ").strip()
+    opcao = ui.menu_opcoes(
+        "Traduzir para qual(is) idioma(s)?",
+        [
+            ("1", "Um idioma"),
+            ("2", "Vários idiomas"),
+            ("3", "Todos os disponíveis"),
+        ],
+        padrao="1",
+    )
     if opcao == "1":
-        print("  Idiomas disponíveis (digite o número ou o código):")
+        print("  Idiomas disponíveis (número ou código):")
         for i, (cod, nome) in enumerate(IDIOMAS_DISPONIVEIS, 1):
-            print(f"    {C_OPCAO}{i}.{C_RESET} {nome} ({cod})")
-        codigo = _pergunta("Idioma de destino", "pt")
-        codigo = codigo.strip()
-        # Se digitou um número, converter para código do idioma
-        try:
-            idx = int(codigo)
-            if 1 <= idx <= len(IDIOMAS_DISPONIVEIS):
-                codigo, nome = IDIOMAS_DISPONIVEIS[idx - 1]
-                return [(codigo, nome)]
-        except ValueError:
-            pass
-        nome = next((n for c, n in IDIOMAS_DISPONIVEIS if c == codigo), codigo)
-        return [(codigo, nome)]
+            print(f"    {ui.C_OPCAO}{i}.{ui.C_RESET} {nome} ({cod})")
+        codigo = ui.pergunta("Idioma de destino", "pt").strip()
+        idioma = resolver_idioma_destino(codigo)
+        if idioma:
+            return [idioma]
+        return [(codigo, codigo)]
     if opcao == "2":
         print("  Idiomas disponíveis:")
         for i, (cod, nome) in enumerate(IDIOMAS_DISPONIVEIS, 1):
             print(f"    {i}. {nome} ({cod})")
-        escolha = input("  Números separados por vírgula (ex: 1,3,5): ").strip()
+        escolha = ui.pergunta("Números separados por vírgula (ex: 1,3,5)")
         indices = []
         for s in escolha.replace(" ", "").split(","):
             try:
@@ -390,148 +101,395 @@ def _escolher_idiomas() -> list[tuple[str, str]] | None:
             except ValueError:
                 pass
         if not indices:
-            _mensagem_aviso("Nenhum idioma válido informado.")
+            ui.mensagem_aviso("Nenhum idioma válido informado.")
             return None
-        return [IDIOMAS_DISPONIVEIS[i] for i in sorted(set(indices))]
-    if opcao == "3":
-        return IDIOMAS_DISPONIVEIS.copy()
-    _mensagem_aviso("Opção inválida.")
-    return None
-
-
-def _normalizar_idioma_origem(entrada: str) -> str | None:
-    """Converte a resposta do usuário (número ou código) no código do idioma para a API. Retorna None para detecção automática."""
-    entrada = entrada.strip()
-    if not entrada:
-        return None
-    try:
-        idx = int(entrada)
-        if 1 <= idx <= len(IDIOMAS_DISPONIVEIS):
-            return IDIOMAS_DISPONIVEIS[idx - 1][0]
-    except ValueError:
-        pass
-    codigo = next((c for c, _ in IDIOMAS_DISPONIVEIS if c == entrada.lower()), None)
-    if not codigo and entrada:
-        _mensagem_aviso("Idioma de origem não reconhecido; será detectado automaticamente.")
-    return codigo if codigo else None
+        return resolver_idiomas_por_indices(indices)
+    return IDIOMAS_DISPONIVEIS.copy()
 
 
 def _escolher_um_idioma() -> tuple[str, str] | None:
-    """Pergunta um único idioma de destino. Retorna (código, nome) ou None."""
-    print("  Idiomas disponíveis (digite o número ou o código):")
+    print("  Idiomas disponíveis (número ou código):")
     for i, (cod, nome) in enumerate(IDIOMAS_DISPONIVEIS, 1):
-        print(f"    {C_OPCAO}{i}.{C_RESET} {nome} ({cod})")
-    codigo = _pergunta("Idioma de destino", "pt").strip()
+        print(f"    {ui.C_OPCAO}{i}.{ui.C_RESET} {nome} ({cod})")
+    codigo = ui.pergunta("Idioma de destino", "pt").strip()
+    idioma = resolver_idioma_destino(codigo)
+    if idioma is None:
+        ui.mensagem_aviso("Idioma não reconhecido.")
+    return idioma
+
+
+def executar_dividir_por_paginas() -> None:
+    ui.secao("Dividir PDF — a cada N páginas")
     try:
-        idx = int(codigo)
-        if 1 <= idx <= len(IDIOMAS_DISPONIVEIS):
-            return IDIOMAS_DISPONIVEIS[idx - 1]
-    except ValueError:
-        pass
-    nome = next((n for c, n in IDIOMAS_DISPONIVEIS if c == codigo), None)
-    if nome is None:
-        _mensagem_aviso("Idioma não reconhecido.")
-        return None
-    return (codigo, nome)
+        ui.passo(1, 3, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF para dividir")
+        ui.passo(2, 3, "Definir tamanho de cada parte")
+        paginas = nav.solicitar_inteiro("Quantas páginas por parte?", minimo=1, padrao=10)
+        ui.passo(3, 3, "Escolher pasta de saída")
+        pasta = nav.solicitar_pasta_saida("Mesma pasta do PDF", diretorio_inicial=Path(arquivo).parent)
+        ui.info("Dividindo...")
+        _mostrar_resultado(operacao_dividir_por_paginas(arquivo, paginas, pasta))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def executar_dividir_em_partes() -> None:
+    ui.secao("Dividir PDF — em N partes iguais")
+    try:
+        ui.passo(1, 3, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF para dividir")
+        ui.passo(2, 3, "Definir quantidade de partes")
+        partes = nav.solicitar_inteiro("Em quantas partes dividir?", minimo=2, padrao=2)
+        ui.passo(3, 3, "Escolher pasta de saída")
+        pasta = nav.solicitar_pasta_saida("Mesma pasta do PDF", diretorio_inicial=Path(arquivo).parent)
+        ui.info("Dividindo...")
+        _mostrar_resultado(operacao_dividir_em_partes(arquivo, partes, pasta))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def executar_juntar() -> None:
+    ui.secao("Juntar PDFs")
+    try:
+        ui.passo(1, 2, "Selecionar os PDFs")
+        lista = nav.solicitar_arquivos_pdf("Selecione PDFs para juntar")
+        ui.passo(2, 2, "Definir arquivo de saída")
+        saida = nav.solicitar_salvar_pdf(
+            "Salvar PDF juntado como",
+            nome_sugerido="documento_juntado.pdf",
+            diretorio_inicial=Path(lista[0]).parent,
+        )
+        if not saida:
+            ui.mensagem_aviso("Operação cancelada — destino não informado.")
+            return
+        ui.info("Juntando...")
+        _mostrar_resultado(operacao_juntar(lista, saida))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def _escolher_threads_traducao() -> int:
+    nucleos = nucleos_disponiveis()
+    sugestao = threads_sugeridas_traducao()
+    ui.info(
+        f"Seu computador tem {nucleos} núcleo(s) lógico(s). "
+        f"Recomendado: {sugestao} thread(s) para tradução em paralelo."
+    )
+    return nav.solicitar_inteiro(
+        "Quantas threads usar na tradução?",
+        minimo=1,
+        maximo=nucleos,
+        padrao=sugestao,
+    )
 
 
 def executar_traduzir() -> None:
-    """Fluxo: traduzir PDF com Google Translate; escolher idioma(s); arquivos na pasta do origem."""
-    _secao("Traduzir PDF (Google Translate)")
-    print("  Informe o caminho completo do arquivo .pdf (ex: C:\\pasta\\arquivo.pdf).")
-    print()
-    arquivo = _solicitar_arquivo_pdf("Caminho do PDF")
-    path_entrada = Path(arquivo)
-    pasta_origem = path_entrada.parent
-    _mensagem_ok(f"Os traduzidos serão salvos em: {pasta_origem.resolve()}")
-    print()
-    idiomas = _escolher_idiomas()
-    if not idiomas:
-        return
-    entrada_origem = _pergunta("Idioma de origem (Enter = detectar automaticamente)", "")
-    idioma_origem = _normalizar_idioma_origem(entrada_origem)
-    total = len(idiomas)
-    print()
-    print(f"  {C_TITULO}Traduzindo {total} arquivo(s)...{C_RESET}")
-    print()
+    ui.secao("Traduzir PDF (Google Translate)")
+    pasta_origem: Path | None = None
     try:
-        gerados = _traduzir_para_idiomas(arquivo, idiomas, idioma_origem)
-        _mostrar_resumo_pasta_saida(pasta_origem, gerados, "Tradução concluída")
+        ui.passo(1, 4, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF para traduzir")
+        pasta_origem = Path(arquivo).parent
+        ui.mensagem_ok(f"Traduções serão salvas em: {pasta_origem}")
+        ui.passo(2, 4, "Escolher idioma(s) de destino")
+        idiomas = _escolher_idiomas()
+        if not idiomas:
+            return
+        ui.passo(3, 4, "Confirmar idioma de origem")
+        idioma_origem = normalizar_idioma_origem(ui.pergunta("Idioma de origem (Enter = detectar automaticamente)"))
+        ui.passo(4, 4, "Threads de tradução")
+        threads = _escolher_threads_traducao()
+        ui.info(f"Traduzindo {len(idiomas)} arquivo(s) com {threads} thread(s)...")
+        _mostrar_resultado(operacao_traduzir(arquivo, idiomas, idioma_origem, numero_workers=threads))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
     except Exception as e:
-        _mensagem_erro(str(e))
-        _mostrar_resumo_pasta_saida(pasta_origem, [], "Tradução (erro)")
+        ui.mensagem_erro(str(e))
+        if pasta_origem:
+            nav.mostrar_resultado("Tradução (erro)", pasta_origem, [], oferecer_abrir_pasta=False)
+    finally:
+        _finalizar_operacao()
 
 
 def executar_traduzir_2colunas() -> None:
-    """Traduz o PDF e gera um novo PDF com 2 colunas: original (esquerda) e tradução (direita)."""
-    _secao("Traduzir PDF — Original + Tradução em 2 colunas")
-    print("  Gera um PDF para leitura lado a lado: coluna esquerda = original, direita = tradução.")
-    print()
-    arquivo = _solicitar_arquivo_pdf("Caminho do PDF")
-    path_entrada = Path(arquivo)
-    pasta_origem = path_entrada.parent
-    stem, sufixo = path_entrada.stem, path_entrada.suffix
-    codigo_motor = MOTOR_TRADUCAO_GOOGLE[0]
-
-    idioma = _escolher_um_idioma()
-    if not idioma:
-        return
-    codigo_idioma, nome_idioma = idioma
-
-    entrada_origem = _pergunta("Idioma de origem (Enter = detectar automaticamente)", "")
-    idioma_origem = _normalizar_idioma_origem(entrada_origem)
-
-    caminho_traduzido = pasta_origem / f"{stem}_{codigo_motor}_{codigo_idioma}{sufixo}"
-    caminho_2colunas = pasta_origem / f"{stem}_2colunas_{codigo_idioma}{sufixo}"
-
-    print()
-    print(f"  {C_TITULO}Traduzindo e montando PDF 2 colunas...{C_RESET}")
-    print()
+    ui.secao("Traduzir PDF — Original + Tradução em 2 colunas")
+    ui.info("Gera um PDF lado a lado: original à esquerda, tradução à direita.")
+    pasta_origem: Path | None = None
     try:
-        traduzir_pdf(
-            arquivo,
-            str(caminho_traduzido),
-            idioma_destino=codigo_idioma,
-            idioma_origem=idioma_origem,
+        ui.passo(1, 4, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF para traduzir")
+        pasta_origem = Path(arquivo).parent
+        ui.passo(2, 4, "Escolher idioma de destino")
+        idioma = _escolher_um_idioma()
+        if not idioma:
+            return
+        ui.passo(3, 4, "Confirmar idioma de origem")
+        idioma_origem = normalizar_idioma_origem(ui.pergunta("Idioma de origem (Enter = detectar automaticamente)"))
+        ui.passo(4, 4, "Threads de tradução")
+        threads = _escolher_threads_traducao()
+        ui.info(f"Traduzindo e montando PDF em 2 colunas com {threads} thread(s)...")
+        _mostrar_resultado(
+            operacao_traduzir_2colunas(arquivo, idioma[0], idioma_origem, numero_workers=threads)
         )
-        _mensagem_ok("Tradução concluída.")
-        criar_pdf_duas_colunas(arquivo, str(caminho_traduzido), str(caminho_2colunas))
-        _mensagem_ok(f"PDF 2 colunas gerado: {caminho_2colunas.name}")
-        _mostrar_resumo_pasta_saida(pasta_origem, [str(caminho_2colunas)], "PDF 2 colunas (original + tradução)")
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
     except Exception as e:
-        _mensagem_erro(str(e))
-        _mostrar_resumo_pasta_saida(pasta_origem, [], "PDF 2 colunas (erro)")
+        ui.mensagem_erro(str(e))
+        if pasta_origem:
+            nav.mostrar_resultado("PDF 2 colunas (erro)", pasta_origem, [], oferecer_abrir_pasta=False)
+    finally:
+        _finalizar_operacao()
 
 
-def menu_principal() -> None:
-    """Exibe o menu e executa a opção escolhida."""
+def executar_converter_para_pdf() -> None:
+    ui.secao("Converter arquivos para PDF")
+    ui.info(formatos_suportados_texto())
+    if not libreoffice_disponivel():
+        ui.mensagem_aviso(
+            "Word/Excel/PowerPoint exigem LibreOffice instalado. "
+            "Imagens, texto e HTML funcionam sem instalação extra."
+        )
+    try:
+        modo = ui.menu_opcoes(
+            "O que deseja converter?",
+            [
+                ("1", "Um ou mais arquivos"),
+                ("2", "Todos os arquivos de uma pasta"),
+            ],
+            padrao="1",
+        )
+        if modo == "1":
+            ui.passo(1, 3, "Selecionar arquivo(s)")
+            arquivos = nav.solicitar_arquivos_convertiveis(
+                "Selecione os arquivos para converter (ordem = ordem no PDF)"
+            )
+            ui.passo(2, 3, "Como gerar os PDFs")
+            juntar = ui.menu_opcoes(
+                "Como converter os arquivos selecionados?",
+                [
+                    ("1", "Unir todos em um único PDF"),
+                    ("2", "Gerar um PDF separado para cada arquivo"),
+                ],
+                padrao="1",
+            ) == "1"
+            if juntar:
+                ui.passo(3, 3, "Definir PDF de saída")
+                if len(arquivos) == 1:
+                    nome_padrao = f"{Path(arquivos[0]).stem}.pdf"
+                    rotulo_padrao = f"Salvar como {nome_padrao} na mesma pasta"
+                else:
+                    nome_padrao = "documento_convertido.pdf"
+                    rotulo_padrao = f"Salvar como {nome_padrao} na pasta do 1º arquivo"
+                saida = nav.solicitar_salvar_pdf(
+                    "Salvar PDF como",
+                    nome_sugerido=nome_padrao,
+                    diretorio_inicial=Path(arquivos[0]).parent,
+                    permitir_padrao=True,
+                    rotulo_padrao=rotulo_padrao,
+                )
+                if saida is None:
+                    saida = str(Path(arquivos[0]).parent / nome_padrao)
+            else:
+                ui.passo(3, 3, "Escolher pasta de saída")
+                saida = nav.solicitar_pasta_saida(
+                    "Pasta do 1º arquivo",
+                    diretorio_inicial=Path(arquivos[0]).parent,
+                )
+            ui.info("Convertendo...")
+            _mostrar_resultado(operacao_converter_arquivos(arquivos, saida, juntar_em_um=juntar))
+        else:
+            ui.passo(1, 3, "Selecionar pasta com os arquivos")
+            pasta = nav.solicitar_pasta("Selecione a pasta com os arquivos")
+            ui.passo(2, 3, "Escolher pasta de saída")
+            pasta_saida = nav.solicitar_pasta_saida("Mesma pasta dos arquivos", diretorio_inicial=pasta)
+            ui.passo(3, 3, "Opções para imagens")
+            juntar = ui.menu_opcoes(
+                "Como converter imagens encontradas na pasta?",
+                [
+                    ("1", "Unir todas em um único PDF (imagens.pdf)"),
+                    ("2", "Gerar um PDF separado para cada imagem"),
+                ],
+                padrao="1",
+            ) == "1"
+            ui.info("Convertendo arquivos...")
+            _mostrar_resultado(operacao_converter_pasta(pasta, pasta_saida, juntar))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except RuntimeError as e:
+        ui.mensagem_erro(str(e))
+        if MSG_LIBREOFFICE.split(".")[0] in str(e):
+            ui.info(MSG_LIBREOFFICE)
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def executar_extrair_paginas() -> None:
+    ui.secao("Extrair páginas específicas")
+    ui.info("Informe páginas como: 1,3,5-10 (a ordem informada será mantida).")
+    try:
+        ui.passo(1, 3, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF de origem")
+        total = obter_total_paginas(arquivo)
+        ui.passo(2, 3, "Informar páginas a extrair")
+        paginas = nav.solicitar_intervalo_paginas(total, permitir_todas=False)
+        ui.passo(3, 3, "Definir PDF de saída")
+        stem = Path(arquivo).stem
+        saida = nav.solicitar_salvar_pdf(
+            "Salvar páginas extraídas como",
+            nome_sugerido=f"{stem}_paginas.pdf",
+            diretorio_inicial=Path(arquivo).parent,
+            permitir_padrao=True,
+            rotulo_padrao=f"Salvar como {stem}_paginas.pdf na mesma pasta",
+        )
+        if saida is None:
+            saida = str(Path(arquivo).parent / f"{stem}_paginas.pdf")
+        ui.info("Extraindo páginas...")
+        _mostrar_resultado(operacao_extrair_paginas(arquivo, paginas, saida))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def executar_rotacionar_paginas() -> None:
+    ui.secao("Rotacionar páginas")
+    try:
+        ui.passo(1, 4, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF")
+        total = obter_total_paginas(arquivo)
+        ui.passo(2, 4, "Escolher páginas")
+        paginas = nav.solicitar_intervalo_paginas(total, permitir_todas=True)
+        ui.passo(3, 4, "Escolher rotação")
+        opcao = ui.menu_opcoes(
+            "Girar em qual sentido?",
+            [("1", "90° horário"), ("2", "90° anti-horário"), ("3", "180°")],
+            padrao="1",
+        )
+        angulos = {"1": 90, "2": -90, "3": 180}
+        ui.passo(4, 4, "Definir PDF de saída")
+        stem = Path(arquivo).stem
+        saida = nav.solicitar_salvar_pdf(
+            "Salvar PDF rotacionado como",
+            nome_sugerido=f"{stem}_rotacionado.pdf",
+            diretorio_inicial=Path(arquivo).parent,
+            permitir_padrao=True,
+            rotulo_padrao=f"Salvar como {stem}_rotacionado.pdf na mesma pasta",
+        )
+        if saida is None:
+            saida = str(Path(arquivo).parent / f"{stem}_rotacionado.pdf")
+        ui.info("Rotacionando...")
+        _mostrar_resultado(operacao_rotacionar(arquivo, angulos[opcao], saida, paginas))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def executar_comprimir_pdf() -> None:
+    ui.secao("Comprimir / reduzir tamanho do PDF")
+    try:
+        ui.passo(1, 3, "Selecionar o PDF")
+        arquivo = nav.solicitar_arquivo_pdf("Selecione o PDF para comprimir")
+        ui.passo(2, 3, "Escolher nível de compressão")
+        nivel_opcao = ui.menu_opcoes(
+            "Nível de compressão",
+            [
+                ("1", "Leve — menor redução, melhor qualidade"),
+                ("2", "Médio — equilíbrio (recomendado)"),
+                ("3", "Forte — maior redução, pode afetar imagens"),
+            ],
+            padrao="2",
+        )
+        niveis = {"1": "leve", "2": "medio", "3": "forte"}
+        ui.passo(3, 3, "Definir PDF de saída")
+        stem = Path(arquivo).stem
+        saida = nav.solicitar_salvar_pdf(
+            "Salvar PDF comprimido como",
+            nome_sugerido=f"{stem}_comprimido.pdf",
+            diretorio_inicial=Path(arquivo).parent,
+            permitir_padrao=True,
+            rotulo_padrao=f"Salvar como {stem}_comprimido.pdf na mesma pasta",
+        )
+        if saida is None:
+            saida = str(Path(arquivo).parent / f"{stem}_comprimido.pdf")
+        ui.info("Comprimindo...")
+        _mostrar_resultado(operacao_comprimir(arquivo, saida, nivel=niveis[nivel_opcao]))
+    except OperacaoCancelada:
+        ui.mensagem_aviso("Operação cancelada.")
+    except Exception as e:
+        ui.mensagem_erro(str(e))
+    finally:
+        _finalizar_operacao()
+
+
+def menu_console() -> None:
     opcoes = [
         ("1", "Dividir PDF (a cada N páginas)", executar_dividir_por_paginas),
         ("2", "Dividir PDF (em N partes iguais)", executar_dividir_em_partes),
         ("3", "Juntar PDFs", executar_juntar),
         ("4", "Traduzir PDF (Google Translate)", executar_traduzir),
         ("5", "Traduzir PDF (original + tradução, 2 colunas)", executar_traduzir_2colunas),
+        ("6", "Converter arquivos para PDF", executar_converter_para_pdf),
+        ("7", "Extrair páginas específicas", executar_extrair_paginas),
+        ("8", "Rotacionar páginas", executar_rotacionar_paginas),
+        ("9", "Comprimir / reduzir tamanho", executar_comprimir_pdf),
         ("0", "Sair", None),
     ]
-    _definir_titulo_janela(TITULO_APLICACAO)
+    ui.definir_titulo_janela(TITULO_APLICACAO)
     while True:
-        _caixa_titulo(TITULO_APLICACAO)
-        for codigo, texto, _ in opcoes:
-            print(f"    {C_OPCAO}{codigo}.{C_RESET} {texto}")
+        ui.caixa_titulo(TITULO_APLICACAO)
+        print(f"  {ui.C_SUBTIL}Escolha uma operação:{ui.C_RESET}")
         print()
-        escolha = input(f"  Digite a opção ({C_OPCAO}0{C_RESET}-{C_OPCAO}5{C_RESET}): ").strip()
+        for codigo, texto, _ in opcoes:
+            print(f"    {ui.C_OPCAO}{codigo}.{ui.C_RESET} {texto}")
+        print()
+        escolha = input(f"  Opção [{ui.C_OPCAO}0{ui.C_RESET}-{ui.C_OPCAO}9{ui.C_RESET}]: ").strip()
         for codigo, _, funcao in opcoes:
             if escolha == codigo:
                 if funcao is None:
                     print()
-                    print(f"  {C_SUCESSO}Até logo!{C_RESET}")
+                    ui.mensagem_ok("Até logo!")
                     print()
                     return
                 funcao()
                 break
         else:
-            _mensagem_aviso("Opção inválida. Escolha 0, 1, 2, 3, 4 ou 5.")
+            ui.mensagem_aviso("Opção inválida. Escolha um número de 0 a 9.")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Manipulador de arquivos PDF")
+    parser.add_argument(
+        "--console",
+        action="store_true",
+        help="Usar interface em terminal em vez da interface gráfica",
+    )
+    args = parser.parse_args()
+
+    if args.console:
+        menu_console()
+    else:
+        from interface_grafica import iniciar_aplicacao
+        iniciar_aplicacao()
 
 
 if __name__ == "__main__":
-    menu_principal()
+    main()

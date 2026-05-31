@@ -6,13 +6,15 @@ Módulo para junção de múltiplos arquivos PDF em um único PDF.
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter
-from tqdm import tqdm
+
+from progresso import RelatorioProgresso, percorrer
 
 
 def juntar_pdfs(
     lista_caminhos: list[str],
     caminho_saida: str,
     ordenar_por_nome: bool = True,
+    progresso: RelatorioProgresso | None = None,
 ) -> str:
     """
     Junta vários arquivos PDF em um único arquivo.
@@ -40,7 +42,7 @@ def juntar_pdfs(
     caminho_saida.parent.mkdir(parents=True, exist_ok=True)
 
     escritor = PdfWriter()
-    for caminho in tqdm(caminhos, desc="Juntando PDFs", unit="arquivo"):
+    for caminho in percorrer(caminhos, descricao="Juntando PDFs", progresso=progresso, unit="arquivo"):
         escritor.append(PdfReader(str(caminho)))
 
     with open(caminho_saida, "wb") as arquivo:

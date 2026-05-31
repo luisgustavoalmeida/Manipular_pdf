@@ -9,3 +9,6 @@ deep-translator>=1.11.0
 
 # Barra de progresso
 tqdm>=4.66.0
+
+# Interface gráfica
+customtkinter>=5.2.0
