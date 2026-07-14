@@ -298,7 +298,7 @@ class PainelOperacao(ABC, ctk.CTkFrame):
                     self._app.registrar_operacao_finalizada(self._op_id, cancelado)
             except Exception as e:
                 if self.winfo_exists():
-                    self.after(0, lambda: self._finalizar_erro(str(e)))
+                    self.after(0, lambda msg=str(e): self._finalizar_erro(msg))
                 elif self._app and self._op_id:
                     self._app.registrar_operacao_finalizada(
                         self._op_id,
