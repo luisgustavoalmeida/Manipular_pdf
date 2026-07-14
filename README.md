@@ -3,7 +3,9 @@
 
 Aplicação desktop para **Windows** que reúne, em uma única interface, as operações mais comuns sobre documentos PDF: dividir, juntar, traduzir, converter, extrair, rotacionar e comprimir. Disponível como **executável autônomo** (`ManipuladorPDF.exe`) ou como projeto Python para desenvolvimento e automação.
 
-**Repositório:** [github.com/luisgustavoalmeida/Manipular_pdf](https://github.com/luisgustavoalmeida/Manipular_pdf)
+**Versão compilada atual:** [v2.0](https://github.com/luisgustavoalmeida/Manipular_pdf/releases/tag/v2.0) — baixe `ManipuladorPDF.exe` (Windows 64 bits, sem instalar Python).
+
+**Repositório:** [github.com/luisgustavoalmeida/Manipular_pdf](https://github.com/luisgustavoalmeida/Manipular_pdf) · **Releases:** [github.com/luisgustavoalmeida/Manipular_pdf/releases](https://github.com/luisgustavoalmeida/Manipular_pdf/releases)
 
 ---
 
@@ -25,6 +27,7 @@ Aplicação desktop para **Windows** que reúne, em uma única interface, as ope
 - [Arquitetura](#arquitetura)
 - [Dependências](#dependências)
 - [Solução de problemas](#solução-de-problemas)
+- [Versão e histórico](#versão-e-histórico)
 
 ---
 
@@ -34,7 +37,7 @@ O **Manipulador PDF** foi pensado para fluxos do dia a dia com manuais, apostila
 
 | Público | Como usar |
 |---------|-----------|
-| **Usuário final** | Baixe ou compile `ManipuladorPDF.exe` e execute com duplo clique |
+| **Usuário final** | Baixe a [release v2.0](https://github.com/luisgustavoalmeida/Manipular_pdf/releases/tag/v2.0) (`ManipuladorPDF.exe`) e execute com duplo clique |
 | **Desenvolvedor** | Clone o repositório, instale dependências e execute `python main.py` |
 | **Automação** | Importe os módulos Python ou a camada `operacoes.py` em scripts |
 
@@ -133,11 +136,19 @@ Preferências do usuário (tema, última pasta) são salvas em `%LOCALAPPDATA%\M
 
 ## Instalação e uso rápido (executável)
 
-1. Obtenha `ManipuladorPDF.exe` (pasta `dist/` após compilar ou release do repositório).
+A versão compilada oficial é a **v2.0** (`ManipuladorPDF.exe`, Windows 10+ 64 bits).
+
+1. Baixe o executável na página de releases:  
+   **[Manipulador PDF v2.0 — Download](https://github.com/luisgustavoalmeida/Manipular_pdf/releases/tag/v2.0)**  
+   (arquivo `ManipuladorPDF.exe` nos Assets; opcionalmente o `.rar` compactado)
 2. Copie o arquivo para a pasta desejada.
-3. Execute com duplo clique — não há instalador.
+3. Execute com duplo clique — não há instalador nem dependência de Python.
+
+> **Nota:** se o Windows SmartScreen exibir um aviso, escolha «Mais informações» → «Executar assim mesmo» (build local sem assinatura de código).
 
 As preferências ficam em `%LOCALAPPDATA%\ManipuladorPDF\config_usuario.json`.
+
+Para gerar o `.exe` localmente a partir do código-fonte, veja [Gerar o executável (PyInstaller)](#gerar-o-executável-pyinstaller).
 
 ---
 
@@ -404,12 +415,13 @@ dividir_pdf    juntar_pdf     traduzir_pdf      converter_para_pdf
 
 ## Versão e histórico
 
-Versão atual: **2.0**
+Versão atual: **2.0**  
+Release compilada: **[v2.0](https://github.com/luisgustavoalmeida/Manipular_pdf/releases/tag/v2.0)** · [Todas as releases](https://github.com/luisgustavoalmeida/Manipular_pdf/releases)
 
-| Versão | Destaques |
-|--------|-----------|
-| **2.0** | Interface gráfica, nove operações, executável Windows, tema claro/escuro, diálogo Sobre, cancelamento com limpeza de parciais, conversão ampliada |
-| **1.0** | Versão inicial: dividir, juntar e traduzir (modo terminal) |
+| Versão | Tipo | Destaques |
+|--------|------|-----------|
+| **2.0** | [Release](https://github.com/luisgustavoalmeida/Manipular_pdf/releases/tag/v2.0) + código | Interface gráfica, nove operações, `ManipuladorPDF.exe` para Windows, tema claro/escuro, diálogo Sobre, cancelamento com limpeza de parciais, conversão ampliada |
+| **1.0** | Código | Versão inicial: dividir, juntar e traduzir (modo terminal) |
 
 ---
 
